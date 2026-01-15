@@ -1,0 +1,6 @@
+{
+  "name": "git-commit",
+  "description": "自动化 Git 提交流程：智能生成提交信息、执行提交、推送到远程，并生成提交文档",
+  "version": "1.0.0",
+  "author": "Claude Code Guide"
+}
