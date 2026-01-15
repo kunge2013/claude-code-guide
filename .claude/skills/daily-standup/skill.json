@@ -1,0 +1,6 @@
+{
+  "name": "daily-standup",
+  "description": "生成每日站会报告：自动分析最近的工作进展、遇到的问题和今日计划",
+  "version": "1.0.0",
+  "author": "Claude Code Guide"
+}
