@@ -212,6 +212,61 @@ HTML_TEMPLATE = '''
             white-space: nowrap;
         }
 
+        .related-files {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .related-files h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .related-file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .related-file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8ebff 100%);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .related-file-item:hover {
+            background: linear-gradient(135deg, #e8ebff 0%, #d8dbff 100%);
+            transform: translateX(5px);
+        }
+
+        .related-file-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+
+        .related-file-info {
+            flex: 1;
+        }
+
+        .related-file-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .related-file-type {
+            font-size: 11px;
+            color: #667eea;
+            margin-top: 2px;
+        }
+
         .preview-container {
             display: none;
             background: white;
@@ -353,6 +408,13 @@ HTML_TEMPLATE = '''
             </div>
         </div>
 
+        <div class="related-files" id="relatedFiles" style="display: none;">
+            <h3>🔗 相关文件</h3>
+            <div class="related-file-list" id="relatedFileList">
+                <!-- Related files will be inserted here -->
+            </div>
+        </div>
+
         <div class="error" id="errorBox"></div>
 
         <div class="loading" id="loading">
@@ -478,6 +540,8 @@ HTML_TEMPLATE = '''
                 const result = await response.json();
                 if (result.success) {
                     showPreview(result.html, file.name);
+                    // Hide related files panel for uploaded files (no path available)
+                    document.getElementById('relatedFiles').style.display = 'none';
                 } else {
                     showError(result.error || '文件解析失败');
                 }
@@ -499,6 +563,8 @@ HTML_TEMPLATE = '''
                 if (result.success) {
                     const name = path.split(/[\\/]/).pop();
                     showPreview(result.html, name);
+                    // Load related files after showing preview
+                    loadRelatedFiles(path, type);
                 } else {
                     showError(result.error || '文件加载失败');
                 }
@@ -506,6 +572,55 @@ HTML_TEMPLATE = '''
                 showError('加载失败: ' + err.message);
             }
             hideLoading();
+        }
+
+        async function loadRelatedFiles(filePath, fileType) {
+            try {
+                const response = await fetch('/get_related_files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: filePath, type: fileType })
+                });
+                const result = await response.json();
+
+                if (result.success && result.related && result.related.length > 0) {
+                    const container = document.getElementById('relatedFileList');
+                    const section = document.getElementById('relatedFiles');
+                    container.innerHTML = '';
+
+                    const typeIcons = {
+                        'history': '📜',
+                        'session': '💬',
+                        'subagent': '🤖'
+                    };
+
+                    const typeNames = {
+                        'history': 'History 历史记录',
+                        'session': 'Session 会话记录',
+                        'subagent': 'Subagent 子代理日志'
+                    };
+
+                    result.related.forEach(file => {
+                        const item = document.createElement('div');
+                        item.className = 'related-file-item';
+                        item.innerHTML = `
+                            <div class="related-file-icon">${typeIcons[file.type] || '📄'}</div>
+                            <div class="related-file-info">
+                                <div class="related-file-name">${file.name}</div>
+                                <div class="related-file-type">${typeNames[file.type] || file.type}</div>
+                            </div>
+                        `;
+                        item.onclick = () => loadFile(file.path, file.type);
+                        container.appendChild(item);
+                    });
+
+                    section.style.display = 'block';
+                } else {
+                    document.getElementById('relatedFiles').style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Failed to load related files:', err);
+            }
         }
 
         function showPreview(html, title) {
@@ -1737,6 +1852,59 @@ def get_quick_files() -> List[Dict[str, str]]:
     return files[:30]  # Increased limit to 30 files
 
 
+def get_related_files(file_path: str, file_type: str, parsed_data: Dict) -> List[Dict[str, str]]:
+    """Discover related log files based on sessionId and agentId."""
+    related = []
+    path = Path(file_path)
+    projects_dir = Path.home() / '.claude' / 'projects'
+
+    if file_type == 'history':
+        # History entries can link to session files
+        # Extract unique sessionIds from history entries
+        seen_sessions = set()
+        for entry in parsed_data.get('timeline', []):
+            session_id = entry.get('raw', {}).get('sessionId')
+            if session_id and session_id not in seen_sessions:
+                seen_sessions.add(session_id)
+                # Find session file in projects directory
+                for session_file in projects_dir.glob(f'**/{session_id}.jsonl'):
+                    if 'subagents' not in str(session_file):
+                        related.append({
+                            'name': f"Session: {session_id[:16]}...",
+                            'path': str(session_file),
+                            'type': 'session'
+                        })
+                        break  # Only add each session once
+
+    elif file_type == 'session':
+        # Session can link to subagent files in subagents/ directory
+        session_id = parsed_data.get('metadata', {}).get('session_id', '')
+        session_dir = path.parent / session_id
+        subagents_dir = session_dir / 'subagents'
+
+        if subagents_dir.exists():
+            for agent_file in subagents_dir.glob('agent-*.jsonl'):
+                related.append({
+                    'name': f"Subagent: {agent_file.stem}",
+                    'path': str(agent_file),
+                    'type': 'subagent'
+                })
+
+    elif file_type == 'subagent':
+        # Subagent can link back to parent session
+        session_id = parsed_data.get('metadata', {}).get('sessionId', '')
+        if session_id:
+            session_file = path.parent.parent / f'{session_id}.jsonl'
+            if session_file.exists():
+                related.append({
+                    'name': f"Parent Session: {session_id[:16]}...",
+                    'path': str(session_file),
+                    'type': 'session'
+                })
+
+    return related
+
+
 # =============================================================================
 # FLASK ROUTES
 # =============================================================================
@@ -1817,6 +1985,36 @@ def load_file():
             return jsonify({'success': False, 'error': 'Unknown file type'})
 
         return jsonify({'success': True, 'html': html})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/get_related_files', methods=['POST'])
+def get_related_files_endpoint():
+    """Get related log files based on sessionId and agentId."""
+    data = request.json
+    file_path = data.get('path')
+    file_type = data.get('type')
+
+    if not file_path or not Path(file_path).exists():
+        return jsonify({'success': False, 'error': 'File not found'})
+
+    try:
+        # Parse the file to get metadata
+        if file_type == 'session':
+            parser = SessionLogParser(file_path)
+        elif file_type == 'subagent':
+            parser = SubagentLogParser(file_path)
+        elif file_type == 'history':
+            parser = HistoryParser(file_path)
+        else:
+            return jsonify({'success': False, 'error': 'Unknown file type'})
+
+        parsed_data = parser.parse()
+        related = get_related_files(file_path, file_type, parsed_data)
+
+        return jsonify({'success': True, 'related': related})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
