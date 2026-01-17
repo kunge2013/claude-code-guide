@@ -1,0 +1,14 @@
+# Environment variables with credentials
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Testing
+.pytest_cache/
+playwright-report/
+test-results/
