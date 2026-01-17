@@ -117,10 +117,69 @@ HTML_TEMPLATE = '''
             font-size: 20px;
         }
 
+        .file-group {
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .file-group-header {
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8ebff 100%);
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .file-group-header:hover {
+            background: linear-gradient(135deg, #e8ebff 0%, #d8dbff 100%);
+        }
+
+        .file-group-title {
+            font-weight: 600;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-group-count {
+            background: #667eea;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .file-group-toggle {
+            font-size: 18px;
+            color: #667eea;
+            transition: transform 0.3s;
+        }
+
+        .file-group.collapsed .file-group-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .file-group-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .file-group.collapsed .file-group-content {
+            max-height: 0;
+        }
+
         .file-buttons {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 12px;
+            padding: 15px;
         }
 
         .file-btn {
@@ -289,8 +348,8 @@ HTML_TEMPLATE = '''
 
         <div class="quick-files" id="quickFiles">
             <h2>快速打开常用文件</h2>
-            <div class="file-buttons" id="fileButtons">
-                <!-- File buttons will be inserted here -->
+            <div id="fileGroupsContainer">
+                <!-- File groups will be inserted here -->
             </div>
         </div>
 
@@ -319,18 +378,59 @@ HTML_TEMPLATE = '''
 
         // Initialize quick file buttons
         function initQuickFiles() {
-            const container = document.getElementById('fileButtons');
+            const container = document.getElementById('fileGroupsContainer');
             container.innerHTML = '';
 
+            // Group files by type
+            const fileGroups = {};
+            const typeNames = {
+                'history': '📜 History 历史记录',
+                'session': '💬 Session 会话记录',
+                'subagent': '🤖 Subagent 子代理日志'
+            };
+
             quickFiles.forEach(file => {
-                const btn = document.createElement('button');
-                btn.className = 'file-btn';
-                btn.innerHTML = `
-                    <div class="file-btn-name">${file.name}</div>
-                    <div class="file-btn-path">${file.path}</div>
+                if (!fileGroups[file.type]) {
+                    fileGroups[file.type] = [];
+                }
+                fileGroups[file.type].push(file);
+            });
+
+            // Create collapsible groups
+            Object.keys(fileGroups).forEach(type => {
+                const files = fileGroups[type];
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'file-group';
+
+                groupDiv.innerHTML = `
+                    <div class="file-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div class="file-group-title">
+                            <span>${typeNames[type] || type}</span>
+                            <span class="file-group-count">${files.length}</span>
+                        </div>
+                        <div class="file-group-toggle">▼</div>
+                    </div>
+                    <div class="file-group-content">
+                        <div class="file-buttons"></div>
+                    </div>
                 `;
-                btn.onclick = () => loadFile(file.path, file.type);
-                container.appendChild(btn);
+
+                const buttonsContainer = groupDiv.querySelector('.file-buttons');
+                files.forEach(file => {
+                    const btn = document.createElement('button');
+                    btn.className = 'file-btn';
+                    btn.innerHTML = `
+                        <div class="file-btn-name">${file.name}</div>
+                        <div class="file-btn-path">${file.path}</div>
+                    `;
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        loadFile(file.path, file.type);
+                    };
+                    buttonsContainer.appendChild(btn);
+                });
+
+                container.appendChild(groupDiv);
             });
         }
 
@@ -806,6 +906,344 @@ class HistoryParser:
         return dict(hourly)
 
 
+class SessionLogParser:
+    """Parser for Claude Code session-level JSONL log files."""
+
+    def __init__(self, jsonl_path: str):
+        self.jsonl_path = Path(jsonl_path)
+        self.events: List[Dict[str, Any]] = []
+        self.events_by_uuid: Dict[str, Dict[str, Any]] = {}
+
+    def parse(self) -> Dict[str, Any]:
+        """Parse the JSONL file and return structured data."""
+        if not self.jsonl_path.exists():
+            raise FileNotFoundError(f"Session file not found: {self.jsonl_path}")
+
+        # Load all events
+        with open(self.jsonl_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        event = json.loads(line)
+                        self.events.append(event)
+                        # Index by UUID for parent-child linking
+                        if 'uuid' in event:
+                            self.events_by_uuid[event['uuid']] = event
+                    except json.JSONDecodeError:
+                        pass
+
+        return {
+            'metadata': self._extract_session_metadata(),
+            'conversations': self._build_message_chains(),
+            'tool_calls': self._extract_tool_calls(),
+            'file_operations': self._extract_file_operations(),
+            'system_events': self._extract_system_events(),
+            'queue_events': self._extract_queue_events(),
+            'statistics': self._build_statistics(),
+            'file_type': 'session'
+        }
+
+    def _extract_session_metadata(self) -> Dict[str, Any]:
+        """Extract session-level metadata."""
+        if not self.events:
+            return {}
+
+        # Find first event with full metadata
+        first_event = None
+        for event in self.events:
+            if 'cwd' in event and 'sessionId' in event:
+                first_event = event
+                break
+
+        if not first_event:
+            first_event = self.events[0]
+
+        last_event = self.events[-1]
+
+        # Calculate duration
+        duration_str = "Unknown"
+        try:
+            start_time = datetime.fromisoformat(first_event.get('timestamp', '').replace('Z', '+00:00'))
+            end_time = datetime.fromisoformat(last_event.get('timestamp', '').replace('Z', '+00:00'))
+            duration = end_time - start_time
+            duration_str = str(duration).split('.')[0]  # Remove microseconds
+        except:
+            pass
+
+        return {
+            'session_id': first_event.get('sessionId', 'Unknown'),
+            'slug': first_event.get('slug', 'N/A'),
+            'cwd': first_event.get('cwd', 'Unknown'),
+            'git_branch': first_event.get('gitBranch', 'Unknown'),
+            'version': first_event.get('version', 'Unknown'),
+            'user_type': first_event.get('userType', 'Unknown'),
+            'total_events': len(self.events),
+            'start_time': first_event.get('timestamp', 'Unknown'),
+            'end_time': last_event.get('timestamp', 'Unknown'),
+            'duration': duration_str,
+            'file_name': self.jsonl_path.name
+        }
+
+    def _build_message_chains(self) -> List[Dict[str, Any]]:
+        """Build threaded conversation using parentUuid."""
+        chains = []
+
+        # Sort events by timestamp
+        sorted_events = sorted(self.events, key=lambda e: e.get('timestamp', ''))
+
+        for i, event in enumerate(sorted_events):
+            event_type = event.get('type', '')
+
+            # Skip non-conversation events
+            if event_type in ['queue-operation', 'file-history-snapshot']:
+                continue
+
+            # Build chain info
+            chain_item = {
+                'index': i + 1,
+                'uuid': event.get('uuid', ''),
+                'parent_uuid': event.get('parentUuid', ''),
+                'type': event_type,
+                'timestamp': event.get('timestamp', ''),
+                'raw': event
+            }
+
+            # Add type-specific content
+            if event_type == 'user':
+                chain_item.update(self._parse_user_event(event))
+            elif event_type == 'assistant':
+                chain_item.update(self._parse_assistant_event(event))
+            elif event_type == 'system':
+                chain_item.update(self._parse_system_event(event))
+
+            chains.append(chain_item)
+
+        return chains
+
+    def _parse_user_event(self, event: Dict) -> Dict[str, Any]:
+        """Parse user event content."""
+        message = event.get('message', {})
+        content = message.get('content', [])
+
+        result = {
+            'role': 'user',
+            'content': '',
+            'is_tool_result': False,
+            'tool_use_id': None,
+            'tool_results': []
+        }
+
+        if isinstance(content, list):
+            texts = []
+            tool_results = []
+            for block in content:
+                if isinstance(block, dict):
+                    if block.get('type') == 'text':
+                        texts.append(block.get('text', ''))
+                    elif block.get('type') == 'tool_result':
+                        tool_results.append({
+                            'tool_use_id': block.get('tool_use_id', ''),
+                            'content': str(block.get('content', ''))[:500],
+                            'is_error': block.get('is_error', False)
+                        })
+
+            result['content'] = '\n'.join(texts)
+            if tool_results:
+                result['is_tool_result'] = True
+                result['tool_results'] = tool_results
+
+        return result
+
+    def _parse_assistant_event(self, event: Dict) -> Dict[str, Any]:
+        """Parse assistant event content."""
+        message = event.get('message', {})
+        content = message.get('content', [])
+
+        result = {
+            'role': 'assistant',
+            'model': message.get('model', 'Unknown'),
+            'content': '',
+            'tool_uses': [],
+            'usage': message.get('usage', {})
+        }
+
+        if isinstance(content, list):
+            texts = []
+            tool_uses = []
+            for block in content:
+                if isinstance(block, dict):
+                    if block.get('type') == 'text':
+                        texts.append(block.get('text', ''))
+                    elif block.get('type') == 'tool_use':
+                        tool_uses.append({
+                            'id': block.get('id', ''),
+                            'name': block.get('name', ''),
+                            'input': block.get('input', {})
+                        })
+
+            result['content'] = '\n'.join(texts)
+            result['tool_uses'] = tool_uses
+
+        return result
+
+    def _parse_system_event(self, event: Dict) -> Dict[str, Any]:
+        """Parse system event content."""
+        return {
+            'role': 'system',
+            'subtype': event.get('subtype', ''),
+            'level': event.get('level', 'info'),
+            'error': event.get('error', {}),
+            'retry_info': {
+                'retry_in_ms': event.get('retryInMs', 0),
+                'retry_attempt': event.get('retryAttempt', 0),
+                'max_retries': event.get('maxRetries', 0)
+            }
+        }
+
+    def _extract_tool_calls(self) -> List[Dict[str, Any]]:
+        """Extract all tool calls with their results."""
+        tool_calls = []
+
+        for event in self.events:
+            if event.get('type') == 'assistant':
+                message = event.get('message', {})
+                content = message.get('content', [])
+
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get('type') == 'tool_use':
+                            tool_call_id = block.get('id', '')
+
+                            # Find corresponding tool result
+                            tool_result = None
+                            for result_event in self.events:
+                                if result_event.get('type') == 'user':
+                                    result_content = result_event.get('message', {}).get('content', [])
+                                    if isinstance(result_content, list):
+                                        for result_block in result_content:
+                                            if isinstance(result_block, dict) and \
+                                               result_block.get('type') == 'tool_result' and \
+                                               result_block.get('tool_use_id') == tool_call_id:
+                                                tool_result = result_block
+                                                break
+
+                            tool_calls.append({
+                                'id': tool_call_id,
+                                'name': block.get('name', ''),
+                                'input': block.get('input', {}),
+                                'timestamp': event.get('timestamp', ''),
+                                'result': tool_result,
+                                'assistant_uuid': event.get('uuid', '')
+                            })
+
+        return tool_calls
+
+    def _extract_file_operations(self) -> List[Dict[str, Any]]:
+        """Extract file history snapshots."""
+        file_ops = []
+
+        for event in self.events:
+            if event.get('type') == 'file-history-snapshot':
+                snapshot = event.get('snapshot', {})
+                tracked_backups = snapshot.get('trackedFileBackups', {})
+
+                files_changed = []
+                for file_path, backup_info in tracked_backups.items():
+                    files_changed.append({
+                        'path': file_path,
+                        'backup_file': backup_info.get('backupFileName', ''),
+                        'version': backup_info.get('version', 0),
+                        'backup_time': backup_info.get('backupTime', '')
+                    })
+
+                file_ops.append({
+                    'message_id': event.get('messageId', ''),
+                    'timestamp': snapshot.get('timestamp', ''),
+                    'is_update': event.get('isSnapshotUpdate', False),
+                    'files_changed': files_changed,
+                    'raw': event
+                })
+
+        return file_ops
+
+    def _extract_system_events(self) -> List[Dict[str, Any]]:
+        """Extract system API errors."""
+        system_events = []
+
+        for event in self.events:
+            if event.get('type') == 'system':
+                system_events.append({
+                    'uuid': event.get('uuid', ''),
+                    'timestamp': event.get('timestamp', ''),
+                    'subtype': event.get('subtype', ''),
+                    'level': event.get('level', 'info'),
+                    'error_status': event.get('error', {}).get('status', 0),
+                    'error_message': event.get('error', {}).get('error', {}).get('message', ''),
+                    'retry_in_ms': event.get('retryInMs', 0),
+                    'retry_attempt': event.get('retryAttempt', 0),
+                    'max_retries': event.get('maxRetries', 0),
+                    'raw': event
+                })
+
+        return system_events
+
+    def _extract_queue_events(self) -> List[Dict[str, Any]]:
+        """Extract queue operations."""
+        queue_events = []
+
+        for event in self.events:
+            if event.get('type') == 'queue-operation':
+                queue_events.append({
+                    'operation': event.get('operation', ''),
+                    'timestamp': event.get('timestamp', ''),
+                    'session_id': event.get('sessionId', ''),
+                    'raw': event
+                })
+
+        return queue_events
+
+    def _build_statistics(self) -> Dict[str, Any]:
+        """Build session statistics."""
+        stats = {
+            'total_events': len(self.events),
+            'by_type': dict(Counter()),
+            'tool_calls_by_name': dict(Counter()),
+            'total_tokens': {'input': 0, 'output': 0, 'cache_read': 0},
+            'file_operations': 0,
+            'api_errors': 0,
+            'retry_attempts': 0
+        }
+
+        for event in self.events:
+            event_type = event.get('type', 'unknown')
+            stats['by_type'][event_type] = stats['by_type'].get(event_type, 0) + 1
+
+            if event_type == 'assistant':
+                message = event.get('message', {})
+                usage = message.get('usage', {})
+                stats['total_tokens']['input'] += usage.get('input_tokens', 0)
+                stats['total_tokens']['output'] += usage.get('output_tokens', 0)
+                stats['total_tokens']['cache_read'] += usage.get('cache_read_input_tokens', 0)
+
+                # Count tool uses
+                content = message.get('content', [])
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get('type') == 'tool_use':
+                            tool_name = block.get('name', 'unknown')
+                            stats['tool_calls_by_name'][tool_name] = stats['tool_calls_by_name'].get(tool_name, 0) + 1
+
+            elif event_type == 'file-history-snapshot':
+                stats['file_operations'] += 1
+
+            elif event_type == 'system':
+                stats['api_errors'] += 1
+                stats['retry_attempts'] += event.get('retryAttempt', 0)
+
+        return stats
+
+
 # =============================================================================
 # HTML GENERATION CODE (Simplified for web display)
 # =============================================================================
@@ -830,6 +1268,12 @@ def generate_subagent_html(data: Dict[str, Any]) -> str:
     timeline = data.get('timeline', [])
     tool_groups = data.get('tool_groups', {})
     user_query = data.get('user_query', '')
+
+    # Generate tool HTML
+    tool_items = []
+    for tool_name, uses in tool_groups.items():
+        tool_items.append(f'<div class="tool-item"><strong>{_html_escape(tool_name)}</strong>: {len(uses)} 次</div>')
+    tool_html = ''.join(tool_items) if tool_items else '<div class="tool-item">No tools used</div>'
 
     timeline_items = []
     for item in timeline:
@@ -998,19 +1442,258 @@ def generate_history_html(data: Dict[str, Any]) -> str:
 </html>'''
 
 
+def generate_session_html(data: Dict[str, Any]) -> str:
+    """Generate HTML for session log visualization."""
+    metadata = data.get('metadata', {})
+    stats = data.get('statistics', {})
+    conversations = data.get('conversations', [])
+    tool_calls = data.get('tool_calls', [])
+    file_operations = data.get('file_operations', [])
+    system_events = data.get('system_events', [])
+    queue_events = data.get('queue_events', [])
+
+    # Session ID truncated
+    session_id_short = metadata.get('session_id', 'Unknown')[:16] + '...'
+
+    # Format duration
+    duration = metadata.get('duration', 'Unknown')
+
+    # Build conversation timeline
+    timeline_items = []
+    for item in conversations:
+        role = item.get('role', '')
+        event_type = item.get('type', '')
+        raw_json = _html_escape(json.dumps(item.get('raw'), indent=2, ensure_ascii=False))
+
+        # Get time string with date
+        try:
+            dt = datetime.fromisoformat(item.get('timestamp', '').replace('Z', '+00:00'))
+            date_str = dt.strftime('%Y-%m-%d')
+            time_str = dt.strftime('%H:%M:%S')
+            datetime_str = f'{date_str} {time_str}'
+        except:
+            datetime_str = item.get('timestamp', '')
+            date_str = ''
+            time_str = ''
+
+        # Determine styling based on role/type
+        if role == 'user':
+            dot_color = '#4CAF50'
+            role_badge = '<span class="badge-session-user">👤 用户</span>'
+            if item.get('is_tool_result'):
+                role_badge = '<span class="badge-session-tool-result">🔧 工具结果</span>'
+        elif role == 'assistant':
+            dot_color = '#2196F3'
+            role_badge = '<span class="badge-session-assistant">🤖 AI</span>'
+        elif role == 'system':
+            dot_color = '#F44336'
+            role_badge = '<span class="badge-session-system">⚠️ 系统</span>'
+        else:
+            dot_color = '#999'
+            role_badge = ''
+
+        content_preview = _html_escape(item.get('content', ''))[:200]
+        if item.get('tool_uses'):
+            tool_names = ', '.join(t.get('name', '') for t in item.get('tool_uses', []))
+            content_preview = f'🔧 工具调用: {tool_names}'
+
+        timeline_items.append(f'''<div class="timeline-item type-{role}" onclick="this.classList.toggle('expanded')">
+            <div class="timeline-dot" style="background: {dot_color}"></div>
+            <div class="timeline-date">{date_str}</div>
+            <div class="timeline-time">{time_str}</div>
+            <div class="timeline-type-badge">{role_badge}</div>
+            <div class="timeline-summary">{content_preview}</div>
+            <div class="timeline-expand">点击查看详情</div>
+            <div class="timeline-details">{raw_json}</div>
+        </div>''')
+
+    # Build tool call groups
+    tool_groups = {}
+    for tool in tool_calls:
+        name = tool.get('name', 'Unknown')
+        if name not in tool_groups:
+            tool_groups[name] = []
+        tool_groups[name].append(tool)
+
+    tool_items = []
+    for tool_name, tools in sorted(tool_groups.items()):
+        tool_items.append(f'<div class="tool-item"><strong>{_html_escape(tool_name)}</strong>: {len(tools)} 次</div>')
+
+    # Build file operations
+    file_op_items = []
+    for op in file_operations:
+        timestamp = op.get('timestamp', '')
+        try:
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00')) if timestamp else None
+            time_str = dt.strftime('%H:%M:%S') if dt else timestamp
+        except:
+            time_str = timestamp
+
+        files_list = []
+        for f in op.get('files_changed', []):
+            files_list.append(f'<code>{_html_escape(f.get("path", ""))}</code>')
+
+        file_op_items.append(f'''<div class="file-op-item">
+            <div class="file-op-time">{time_str}</div>
+            <div class="file-op-files">{", ".join(files_list) if files_list else "No files"}</div>
+        </div>''')
+
+    # Build system events
+    system_items = []
+    for event in system_events:
+        timestamp = event.get('timestamp', '')
+        try:
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00')) if timestamp else None
+            time_str = dt.strftime('%H:%M:%S') if dt else timestamp
+        except:
+            time_str = timestamp
+
+        error_msg = _html_escape(event.get('error_message', ''))[:100]
+        retry_attempt = event.get('retry_attempt', 0)
+        max_retries = event.get('max_retries', 0)
+        retry_info = f'重试 {retry_attempt}/{max_retries}' if max_retries > 0 else ''
+
+        system_items.append(f'''<div class="system-event-item" onclick="this.classList.toggle('expanded')">
+            <div class="system-time">{time_str}</div>
+            <div class="system-error">⚠️ {error_msg}</div>
+            {f'<div class="retry-info">{retry_info}</div>' if retry_info else ''}
+            <div class="system-expand">点击查看详情</div>
+            <div class="system-details">{_html_escape(json.dumps(event.get('raw'), indent=2, ensure_ascii=False))}</div>
+        </div>''')
+
+    return f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: system-ui; background: #f5f5f5; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }}
+        .header h1 {{ margin: 0 0 20px 0; font-size: 28px; }}
+        .session-metadata {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }}
+        .metadata-item {{ background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; }}
+        .metadata-label {{ font-size: 11px; opacity: 0.8; margin-bottom: 4px; }}
+        .metadata-value {{ font-size: 14px; font-weight: 600; word-break: break-word; }}
+        .section {{ background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        .section h2 {{ margin: 0 0 15px 0; font-size: 18px; color: #333; }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }}
+        .stat-card {{ background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 18px; border-radius: 10px; text-align: center; }}
+        .stat-card.system {{ background: linear-gradient(135deg, #F44336, #e53935); }}
+        .stat-card.file {{ background: linear-gradient(135deg, #FF9800, #F57C00); }}
+        .stat-value {{ font-size: 26px; font-weight: bold; }}
+        .stat-label {{ font-size: 11px; opacity: 0.9; margin-top: 4px; }}
+        .timeline {{ position: relative; padding-left: 30px; }}
+        .timeline-item {{ padding: 12px 0; border-left: 2px solid #ddd; margin-left: 10px; position: relative; padding-left: 20px; cursor: pointer; transition: background 0.2s; border-radius: 5px; }}
+        .timeline-item:hover {{ background: #f9f9f9; padding-left: 25px; }}
+        .timeline-dot {{ position: absolute; left: -6px; top: 18px; width: 10px; height: 10px; border-radius: 50%; }}
+        .timeline-date {{ font-size: 12px; color: #666; font-weight: 600; display: inline-block; margin-right: 8px; }}
+        .timeline-time {{ font-size: 11px; color: #999; font-weight: 500; }}
+        .timeline-type-badge {{ display: inline-block; margin-left: 8px; font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }}
+        .badge-session-user {{ background: #E8F5E9; color: #2E7D32; }}
+        .badge-session-assistant {{ background: #E3F2FD; color: #1976D2; }}
+        .badge-session-system {{ background: #FFEBEE; color: #C62828; }}
+        .badge-session-tool-result {{ background: #E8EAF6; color: #3F51B5; }}
+        .badge-session-file {{ background: #FFF3E0; color: #E65100; }}
+        .badge-session-queue {{ background: #F3E5F5; color: #6A1B9A; }}
+        .timeline-summary {{ margin-top: 8px; color: #333; line-height: 1.5; }}
+        .timeline-expand {{ color: #667eea; font-size: 11px; margin-top: 6px; display: inline-block; }}
+        .timeline-details {{ display: none; margin-top: 12px; padding: 12px; background: #1e1e1e; color: #d4d4d4; border-radius: 6px; font-family: Consolas, Monaco, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; }}
+        .timeline-item.expanded .timeline-details {{ display: block; }}
+        .timeline-item.expanded .timeline-expand {{ display: none; }}
+        .tool-item {{ padding: 10px; background: #f8f9fa; margin-bottom: 8px; border-radius: 5px; }}
+        .file-op-item {{ padding: 10px; background: #f8f9fa; margin-bottom: 8px; border-radius: 5px; }}
+        .file-op-time {{ font-size: 11px; color: #999; }}
+        .file-op-files {{ margin-top: 5px; }}
+        .file-op-files code {{ background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 12px; }}
+        .system-event-item {{ padding: 12px; background: #FFEBEE; margin-bottom: 8px; border-radius: 5px; cursor: pointer; }}
+        .system-time {{ font-size: 11px; color: #999; }}
+        .system-error {{ margin-top: 5px; color: #C62828; }}
+        .retry-info {{ font-size: 11px; color: #F44336; margin-top: 5px; }}
+        .system-expand {{ color: #667eea; font-size: 11px; margin-top: 6px; display: inline-block; }}
+        .system-details {{ display: none; margin-top: 12px; padding: 12px; background: #1e1e1e; color: #d4d4d4; border-radius: 6px; font-family: Consolas, Monaco, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; }}
+        .system-event-item.expanded .system-details {{ display: block; }}
+        .system-event-item.expanded .system-expand {{ display: none; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Session: {session_id_short}</h1>
+        <div class="session-metadata">
+            <div class="metadata-item">
+                <div class="metadata-label">工作目录</div>
+                <div class="metadata-value">{_html_escape(metadata.get('cwd', 'Unknown'))}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Git 分支</div>
+                <div class="metadata-value">{_html_escape(metadata.get('git_branch', 'Unknown'))}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">版本</div>
+                <div class="metadata-value">{_html_escape(metadata.get('version', 'Unknown'))}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">持续时间</div>
+                <div class="metadata-value">{_html_escape(duration)}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">事件总数</div>
+                <div class="metadata-value">{metadata.get('total_events', 0)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 统计信息</h2>
+        <div class="stats">
+            <div class="stat-card"><div class="stat-value">{stats.get('total_events', 0)}</div><div class="stat-label">总事件</div></div>
+            <div class="stat-card"><div class="stat-value">{len(conversations)}</div><div class="stat-label">对话消息</div></div>
+            <div class="stat-card"><div class="stat-value">{len(tool_calls)}</div><div class="stat-label">工具调用</div></div>
+            <div class="stat-card file"><div class="stat-value">{stats.get('file_operations', 0)}</div><div class="stat-label">文件操作</div></div>
+            <div class="stat-card system"><div class="stat-value">{stats.get('api_errors', 0)}</div><div class="stat-label">API 错误</div></div>
+            <div class="stat-card"><div class="stat-value">{stats.get('total_tokens', {}).get('input', 0) + stats.get('total_tokens', {}).get('output', 0)}</div><div class="stat-label">总 Tokens</div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>💬 对话时间线</h2>
+        <div class="timeline">{''.join(timeline_items)}</div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 工具调用</h2>
+        {''.join(tool_items) if tool_items else '<div class="tool-item">No tools used</div>'}
+    </div>
+
+    {f'''<div class="section">
+        <h2>📁 文件操作</h2>
+        {''.join(file_op_items) if file_op_items else '<div class="file-op-item">No file operations</div>'}
+    </div>''' if file_op_items else ''}
+
+    {f'''<div class="section">
+        <h2>⚠️ 系统事件</h2>
+        {''.join(system_items) if system_items else '<div class="system-event-item">No system events</div>'}
+    </div>''' if system_items else ''}
+</body>
+</html>'''
+
+
 def _html_escape(text: str) -> str:
     return str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
 
 def detect_file_type(file_path: str) -> str:
-    """Detect if file is history or subagent log."""
+    """Detect if file is session, subagent, or history log."""
     with open(file_path, 'r', encoding='utf-8') as f:
         first_line = f.readline().strip()
         if first_line:
             try:
                 data = json.loads(first_line)
-                if 'type' in data and 'message' in data:
+                # Session format: has sessionId and cwd
+                if 'sessionId' in data and 'cwd' in data:
+                    return 'session'
+                # Subagent format: has type and message
+                elif 'type' in data and 'message' in data:
                     return 'subagent'
+                # History format: has display and timestamp
                 elif 'display' in data and 'timestamp' in data:
                     return 'history'
             except:
@@ -1041,7 +1724,17 @@ def get_quick_files() -> List[Dict[str, str]]:
                 'type': 'subagent'
             })
 
-    return files[:20]  # Limit to 20 files
+        # Session files (non-subagent JSONL files in projects)
+        for project_dir in claude_projects.iterdir():
+            if project_dir.is_dir() and 'subagents' not in str(project_dir):
+                for jsonl_file in project_dir.glob('*.jsonl'):
+                    files.append({
+                        'name': f"Session: {jsonl_file.stem[:16]}...",
+                        'path': str(jsonl_file),
+                        'type': 'session'
+                    })
+
+    return files[:30]  # Increased limit to 30 files
 
 
 # =============================================================================
@@ -1081,6 +1774,10 @@ def upload_file():
                 parser = HistoryParser(tmp.name)
                 data = parser.parse()
                 html = generate_history_html(data)
+            elif file_type == 'session':
+                parser = SessionLogParser(tmp.name)
+                data = parser.parse()
+                html = generate_session_html(data)
             else:
                 return jsonify({'success': False, 'error': 'Unknown file format'})
 
@@ -1112,6 +1809,10 @@ def load_file():
             parser = HistoryParser(file_path)
             parsed_data = parser.parse()
             html = generate_history_html(parsed_data)
+        elif file_type == 'session':
+            parser = SessionLogParser(file_path)
+            parsed_data = parser.parse()
+            html = generate_session_html(parsed_data)
         else:
             return jsonify({'success': False, 'error': 'Unknown file type'})
 
