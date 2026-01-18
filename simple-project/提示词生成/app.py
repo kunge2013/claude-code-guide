@@ -21,7 +21,7 @@ for proxy_var in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all
         del os.environ[proxy_var]
 
 # 导入 agent 模块
-from resume_agent import ResumeTemplateAgent
+from resume_agent import ResumeTemplateAgent, Config
 
 # 初始化 session state
 if 'agent' not in st.session_state:
@@ -93,7 +93,18 @@ with st.sidebar:
 
 # 主界面
 st.title("📄 简历模板知识库 Agent")
-st.markdown(f"**模型**: {st.session_state.agent.config.ANTHROPIC_DEFAULT_HAIKU_MODEL} | **API**: 智谱 AI")
+
+# 显示配置信息
+mode_display = {
+    "fuzzy": "🔤 模糊匹配",
+    "vector": "🔍 向量检索",
+    "hybrid": "🔄 混合检索"
+}
+search_mode = Config.SEARCH_MODE
+st.markdown(
+    f"**模型**: {st.session_state.agent.config.ANTHROPIC_DEFAULT_HAIKU_MODEL} | "
+    f"**检索模式**: {mode_display.get(search_mode, search_mode.upper())}"
+)
 
 st.divider()
 

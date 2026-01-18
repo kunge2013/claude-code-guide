@@ -47,6 +47,7 @@ def run_demo(agent: ResumeTemplateAgent):
     print_separator()
     print(f"模型: {Config.ANTHROPIC_DEFAULT_HAIKU_MODEL}")
     print(f"API: {Config.ANTHROPIC_BASE_URL}")
+    print(f"检索模式: {Config.SEARCH_MODE.upper()}")
     print_separator()
 
     for i, query in enumerate(EXAMPLE_QUERIES, 1):

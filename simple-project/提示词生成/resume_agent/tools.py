@@ -1,14 +1,14 @@
 """
 LangChain tools for Resume Template Agent
-Provides tools to query the Excel-based resume template knowledge base
+Provides tools to query the resume template knowledge base with multiple search strategies
 """
 import pandas as pd
 import os
-from typing import Optional, List, Dict
+from typing import Optional
 from langchain_core.tools import tool
-from thefuzz import fuzz
 
 from .config import Config
+from .strategies import StrategyFactory
 
 
 # Load the knowledge base once at module import
@@ -29,13 +29,66 @@ def load_knowledge_base() -> pd.DataFrame:
     return _knowledge_base
 
 
+def _format_search_result(result) -> str:
+    """
+    Format SearchResult into a human-readable string.
+
+    Args:
+        result: SearchResult object from a search strategy
+
+    Returns:
+        Formatted string with template names and download links
+    """
+    if not result.matches:
+        # No matches - return available templates
+        df = load_knowledge_base()
+        available = "\n".join([f"- {template}" for template in df['问题'].tolist()])
+
+        return f"""抱歉，未找到"{result.query}"相关的简历模板。
+
+目前可用的简历模板包括：
+{available}
+
+请尝试以上关键词之一。"""
+
+    # Filter out suggestions (items without download links)
+    valid_matches = [m for m in result.matches if m.download_link]
+
+    if not valid_matches:
+        # Only suggestions available
+        df = load_knowledge_base()
+        available = "\n".join([f"- {template}" for template in df['问题'].tolist()])
+
+        return f"""抱歉，未找到"{result.query}"相关的简历模板。
+
+目前可用的简历模板包括：
+{available}
+
+请尝试以上关键词之一。"""
+
+    # Format valid matches
+    output_lines = []
+    for match in valid_matches:
+        output_lines.append(f"""**模板名称**: {match.template_name}
+**下载地址**: {match.download_link}""")
+
+    return "\n\n".join(output_lines)
+
+
 @tool
-def search_resume_template(query: str) -> str:
+def search_resume_template(query: str, mode: str = None) -> str:
     """
     Search for resume templates in the knowledge base.
 
+    Supports three search modes:
+    - fuzzy: Fuzzy string matching (fast, works well for exact keywords)
+    - vector: Semantic vector search (better for natural language queries)
+    - hybrid: Combined approach (best accuracy)
+
     Args:
         query: The search query for resume template type (e.g., "人事行政", "大学生", "互联网")
+        mode: Optional search mode override ("fuzzy", "vector", or "hybrid").
+              If not specified, uses the SEARCH_MODE config setting.
 
     Returns:
         Formatted string with template name and download link
@@ -44,52 +97,20 @@ def search_resume_template(query: str) -> str:
         >>> search_resume_template("人事行政简历模板")
         "**模板名称**: 人事行政简历模板\\n**下载地址**: https://pan.baidu.com/s/..."
 
-        >>> search_resume_template("通用简历")
+        >>> search_resume_template("通用简历", mode="vector")
         "**模板名称**: 通用简历模板\\n**下载地址**: https://pan.baidu.com/s/..."
     """
     try:
-        df = load_knowledge_base()
+        # Get search mode from config or parameter
+        search_mode = mode or Config.SEARCH_MODE
 
-        # Get all available templates
-        all_templates = df['问题'].tolist()
+        # Create strategy and execute search
+        config = Config()
+        strategy = StrategyFactory.create_strategy(search_mode, config)
+        result = strategy.search(query)
 
-        # Perform fuzzy matching
-        best_match = None
-        best_score = 0
-
-        for template in all_templates:
-            # Calculate similarity score
-            score = fuzz.partial_ratio(query, template)
-
-            # Bonus for exact keyword matches
-            for keyword in query.split():
-                if keyword in template:
-                    score += 20
-
-            if score > best_score:
-                best_score = score
-                best_match = template
-
-        # Threshold for matching (minimum 60% similarity)
-        THRESHOLD = 60
-
-        if best_match and best_score >= THRESHOLD:
-            # Find the corresponding download link
-            result_row = df[df['问题'] == best_match].iloc[0]
-            download_link = result_row['答案']
-
-            return f"""**模板名称**: {best_match}
-**下载地址**: {download_link}"""
-
-        # No match found - return available templates
-        available = "\n".join([f"- {template}" for template in all_templates])
-
-        return f"""抱歉，未找到"{query}"相关的简历模板。
-
-目前可用的简历模板包括：
-{available}
-
-请尝试以上关键词之一。"""
+        # Format and return results
+        return _format_search_result(result)
 
     except Exception as e:
         return f"查询简历模板时出错: {str(e)}"

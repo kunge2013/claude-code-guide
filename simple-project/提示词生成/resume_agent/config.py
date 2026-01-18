@@ -37,6 +37,36 @@ class Config:
     AGENT_TEMPERATURE: float = 0.0
     AGENT_MAX_TOKENS: int = 2000
 
+    # Search mode configuration
+    SEARCH_MODE: str = os.getenv("SEARCH_MODE", "fuzzy")  # fuzzy | vector | hybrid
+
+    # Milvus configuration
+    MILVUS_HOST: str = os.getenv("MILVUS_HOST", "localhost")
+    MILVUS_PORT: int = int(os.getenv("MILVUS_PORT", "19530"))
+    MILVUS_COLLECTION_NAME: str = os.getenv("MILVUS_COLLECTION_NAME", "resume_templates")
+    MILVUS_INDEX_TYPE: str = os.getenv("MILVUS_INDEX_TYPE", "IVF_FLAT")
+    MILVUS_METRIC_TYPE: str = os.getenv("MILVUS_METRIC_TYPE", "COSINE")
+
+    # Embedding configuration
+    EMBEDDING_MODEL_NAME: str = os.getenv(
+        "EMBEDDING_MODEL_NAME",
+        "BAAI/bge-small-zh-v1.5"
+    )
+    EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "512"))
+    EMBEDDING_DEVICE: str = os.getenv("EMBEDDING_DEVICE", "cpu")  # cpu | cuda
+
+    # Vector search configuration
+    VECTOR_TOP_K: int = int(os.getenv("VECTOR_TOP_K", "5"))
+    VECTOR_THRESHOLD: float = float(os.getenv("VECTOR_THRESHOLD", "0.5"))
+
+    # Hybrid search configuration
+    HYBRID_WEIGHT_VECTOR: float = float(os.getenv("HYBRID_WEIGHT_VECTOR", "0.7"))
+    HYBRID_WEIGHT_FUZZY: float = float(os.getenv("HYBRID_WEIGHT_FUZZY", "0.3"))
+
+    # Embedding cache configuration
+    ENABLE_EMBEDDING_CACHE: bool = os.getenv("ENABLE_EMBEDDING_CACHE", "true").lower() == "true"
+    EMBEDDING_CACHE_DIR: str = os.path.join(BASE_DIR, "cache", "embeddings")
+
     def __init__(self):
         """Initialize config and set environment variables for LangChain"""
         # Set environment variables that langchain-anthropic expects
