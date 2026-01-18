@@ -2,6 +2,22 @@
 
 一套用于可视化 Claude Code JSONL 日志文件的完整工具集，支持 Web 界面和命令行两种使用方式。
 
+[相关源码](https://github.com/kunge2013/claude-code-guide/tree/main/log_%E5%88%86%E6%9E%90)
+
+**log_分析工具**
+
+```js
+├── log_分析
+│   ├── 启动可视化工具.bat
+│   ├── 审查visualizer_server.md
+│   ├── ARCHITECTURE.md
+│   ├── history_visualizer.py
+│   ├── README.md
+│   ├── subagent_log_visualizer.py
+│   └── visualizer_server.py
+
+```
+
 ## 功能特性
 
 - 🌐 **Web 界面** - 基于 Flask 的交互式 Web 服务器

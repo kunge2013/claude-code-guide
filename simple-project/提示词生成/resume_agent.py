@@ -13,6 +13,11 @@ import os
 import sys
 import argparse
 
+# Clear proxy settings to avoid API call issues
+for proxy_var in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY']:
+    if proxy_var in os.environ:
+        del os.environ[proxy_var]
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
