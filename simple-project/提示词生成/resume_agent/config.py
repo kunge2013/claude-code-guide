@@ -67,8 +67,23 @@ class Config:
     ENABLE_EMBEDDING_CACHE: bool = os.getenv("ENABLE_EMBEDDING_CACHE", "true").lower() == "true"
     EMBEDDING_CACHE_DIR: str = os.path.join(BASE_DIR, "cache", "embeddings")
 
+    # Hugging Face mirror configuration
+    HF_ENDPOINT: str = os.getenv(
+        "HF_ENDPOINT",
+        "https://hf-mirror.com"
+    )
+
+    # Set HF_ENDPOINT environment variable immediately after reading config
+    # This ensures it's available before any FlagEmbedding imports
+    _hf_endpoint_set: bool = False
+
     def __init__(self):
         """Initialize config and set environment variables for LangChain"""
+        # Set HF_ENDPOINT immediately (before any other imports that might need it)
+        if not Config._hf_endpoint_set:
+            os.environ["HF_ENDPOINT"] = self.HF_ENDPOINT
+            Config._hf_endpoint_set = True
+
         # Set environment variables that langchain-anthropic expects
         os.environ["ANTHROPIC_API_KEY"] = self.ANTHROPIC_AUTH_TOKEN
         os.environ["ANTHROPIC_BASE_URL"] = self.ANTHROPIC_BASE_URL
