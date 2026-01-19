@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangChain ChatBI - Agent Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+
+        .control-panel h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .status-idle {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-running {
+            background: #fff3e0;
+            color: #f57c00;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-completed {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status-failed {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .workflow-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .workflow-header h3 {
+            font-size: 18px;
+            color: #333;
+        }
+
+        .workflow-diagram {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        .node {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .node-pending {
+            background: #e0e0e0;
+            color: #999;
+        }
+
+        .node-active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .node-completed {
+            background: #4caf50;
+            color: white;
+        }
+
+        .node-failed {
+            background: #f44336;
+            color: white;
+        }
+
+        .arrow {
+            color: #999;
+            font-size: 18px;
+        }
+
+        .node-details {
+            margin-top: 20px;
+        }
+
+        .node-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .node-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .node-card-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .node-card-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .node-card-content {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .node-card-content code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', monospace;
+            font-size: 12px;
+            color: #d63384;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 LangChain ChatBI Agent Monitor</h1>
+            <p>Real-time visualization of agent execution workflow</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <h3>Query Input</h3>
+
+                <div id="statusBadge" class="status-badge status-idle">Ready</div>
+
+                <div class="input-group">
+                    <label for="question">Question</label>
+                    <textarea id="question" rows="3" placeholder="Enter your question...">Show me the top 5 products by sales</textarea>
+                </div>
+
+                <div class="input-group">
+                    <label for="language">Language</label>
+                    <input id="language" type="text" value="zh-CN" placeholder="zh-CN or en-US">
+                </div>
+
+                <div class="btn-group">
+                    <button id="executeBtn" class="btn btn-primary" onclick="executeQuery()">
+                        Execute Query
+                    </button>
+                    <button id="resetBtn" class="btn btn-secondary" onclick="resetExecution()">
+                        Reset
+                    </button>
+                </div>
+
+                <div class="info-grid" id="infoGrid" style="display: none;">
+                    <div class="info-item">
+                        <div class="info-label">Start Time</div>
+                        <div class="info-value" id="startTime">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Duration</div>
+                        <div class="info-value" id="duration">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Events</div>
+                        <div class="info-value" id="eventCount">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Nodes</div>
+                        <div class="info-value" id="nodeCount">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow Panel -->
+            <div class="workflow-panel">
+                <div class="workflow-header">
+                    <h3>Workflow Visualization</h3>
+                </div>
+
+                <!-- Workflow Diagram -->
+                <div class="workflow-diagram" id="workflowDiagram">
+                    <span class="node node-pending" data-node="intent">intent</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="schema">schema</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="reasoning">reasoning</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="sql">sql</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="execution">execution</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="chart">chart</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="diagnosis">diagnosis</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="answer">answer</span>
+                    <span class="arrow">→</span>
+                    <span class="node node-pending" data-node="end">END</span>
+                </div>
+
+                <!-- Node Details -->
+                <div class="node-details" id="nodeDetails">
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>Execute a query to see agent details</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        // Execute query
+        async function executeQuery() {
+            const question = document.getElementById('question').value;
+            const language = document.getElementById('language').value;
+
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            // Disable button
+            document.getElementById('executeBtn').disabled = true;
+            document.getElementById('infoGrid').style.display = 'grid';
+
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question, language })
+                });
+
+                if (response.ok) {
+                    startStreaming();
+                }
+            } catch (error) {
+                console.error('Error executing query:', error);
+                document.getElementById('executeBtn').disabled = false;
+            }
+        }
+
+        // Start SSE streaming
+        function startStreaming() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource('/api/stream');
+
+            eventSource.onmessage = function(event) {
+                const status = JSON.parse(event.data);
+                updateUI(status);
+            };
+
+            eventSource.onerror = function() {
+                eventSource.close();
+                document.getElementById('executeBtn').disabled = false;
+            };
+        }
+
+        // Update UI with status
+        function updateUI(status) {
+            // Update status badge
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.className = 'status-badge status-' + status.status;
+            statusBadge.textContent = status.status.charAt(0).toUpperCase() + status.status.slice(1);
+
+            // Update workflow diagram
+            updateWorkflowDiagram(status);
+
+            // Update info grid
+            if (status.start_time) {
+                document.getElementById('startTime').textContent = new Date(status.start_time).toLocaleTimeString();
+            }
+
+            if (status.end_time && status.start_time) {
+                const duration = Math.round((new Date(status.end_time) - new Date(status.start_time)) / 1000);
+                document.getElementById('duration').textContent = duration + 's';
+            }
+
+            if (status.total_events !== undefined) {
+                document.getElementById('eventCount').textContent = status.total_events;
+            }
+
+            document.getElementById('nodeCount').textContent = status.nodes_completed.length;
+
+            // Update node details
+            updateNodeDetails(status);
+        }
+
+        // Update workflow diagram
+        function updateWorkflowDiagram(status) {
+            const nodes = document.querySelectorAll('[data-node]');
+            const completedNodes = status.nodes_completed.map(n => n.node);
+            const failedNodes = status.nodes_failed;
+            const currentNode = status.current_node;
+
+            nodes.forEach(node => {
+                const nodeName = node.getAttribute('data-node');
+                node.className = 'node';
+
+                if (failedNodes.includes(nodeName)) {
+                    node.classList.add('node-failed');
+                } else if (nodeName === currentNode) {
+                    node.classList.add('node-active');
+                } else if (completedNodes.includes(nodeName)) {
+                    node.classList.add('node-completed');
+                } else {
+                    node.classList.add('node-pending');
+                }
+            });
+        }
+
+        // Update node details
+        function updateNodeDetails(status) {
+            const container = document.getElementById('nodeDetails');
+
+            if (status.nodes_completed.length === 0) {
+                return;
+            }
+
+            let html = '';
+            status.nodes_completed.slice().reverse().forEach(result => {
+                html += '<div class="node-card">';
+                html += '<div class="node-card-header">';
+                html += '<span class="node-card-title">' + result.node + '</span>';
+                html += '<span class="node-card-time">' + new Date(result.timestamp).toLocaleTimeString() + '</span>';
+                html += '</div>';
+
+                // Add content based on node type
+                if (result.intent) {
+                    html += '<div class="node-card-content">';
+                    html += 'Intent: <code>' + result.intent + '</code>';
+                    html += '</div>';
+                }
+
+                if (result.reasoning) {
+                    html += '<div class="node-card-content">';
+                    html += '<strong>Reasoning:</strong> ' + result.reasoning;
+                    html += '</div>';
+                }
+
+                if (result.sql) {
+                    html += '<div class="node-card-content">';
+                    html += '<strong>SQL:</strong> <code>' + result.sql + '</code>';
+                    html += '</div>';
+                }
+
+                if (result.result_count !== undefined) {
+                    html += '<div class="node-card-content">';
+                    html += 'Results: ' + result.result_count + ' rows';
+                    html += '</div>';
+                }
+
+                if (result.chart_type) {
+                    html += '<div class="node-card-content">';
+                    html += 'Chart: <code>' + result.chart_type + '</code>';
+                    html += '</div>';
+                }
+
+                if (result.answer) {
+                    html += '<div class="node-card-content">';
+                    html += '<strong>Answer:</strong> ' + result.answer;
+                    html += '</div>';
+                }
+
+                if (result.error) {
+                    html += '<div class="node-card-content" style="color: #d32f2f;">';
+                    html += '<strong>Error:</strong> ' + result.error;
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Reset execution
+        async function resetExecution() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+
+            try {
+                await fetch('/api/reset', { method: 'POST' });
+            } catch (error) {
+                console.error('Error resetting:', error);
+            }
+
+            // Reset UI
+            document.getElementById('statusBadge').className = 'status-badge status-idle';
+            document.getElementById('statusBadge').textContent = 'Ready';
+            document.getElementById('executeBtn').disabled = false;
+            document.getElementById('infoGrid').style.display = 'none';
+
+            // Reset workflow diagram
+            document.querySelectorAll('[data-node]').forEach(node => {
+                node.className = 'node node-pending';
+            });
+
+            // Reset node details
+            document.getElementById('nodeDetails').innerHTML = `
+                <div class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Execute a query to see agent details</p>
+                </div>
+            `;
+        }
+
+        // Auto-start streaming on page load
+        window.addEventListener('load', function() {
+            // Don't auto-start, wait for user to execute
+        });
+    </script>
+</body>
+</html>
