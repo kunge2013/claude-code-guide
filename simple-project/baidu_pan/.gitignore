@@ -12,3 +12,11 @@ __pycache__/
 .pytest_cache/
 playwright-report/
 test-results/
+
+# Browser data (login state)
+.browser_data/
+
+# Output files
+file_list.json
+share_links.*
+*.json

@@ -14,11 +14,19 @@ class Config:
         load_dotenv()
         self.phone = os.getenv('BAIDU_PHONE')
         self.password = os.getenv('BAIDU_PASSWORD')
+        # 目标路径，默认为简历/上千套简历模板，不定期更新
+        self.target_path = os.getenv(
+            'BAIDU_TARGET_PATH',
+            '/简历/上千套简历模板，不定期更新'
+        )
+
+    @property
+    def target_url(self):
+        """获取目标路径的完整URL"""
+        from urllib.parse import quote
+        encoded_path = quote(self.target_path.encode('utf-8'))
+        return f"{self.BASE_URL}disk/main#/index?category=all&path={encoded_path}"
 
     def validate(self):
-        """Validate that required credentials are set."""
-        if not self.phone or not self.password:
-            raise ValueError(
-                "Credentials not set. Please configure BAIDU_PHONE and BAIDU_PASSWORD in .env file"
-            )
+        """配置验证（不再强制要求登录凭据）"""
         return True
