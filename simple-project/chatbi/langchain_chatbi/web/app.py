@@ -4,6 +4,7 @@ Flask Web Application for LangChain ChatBI
 Provides a web interface to visualize agent execution status in real-time.
 """
 
+import asyncio
 import os
 import json
 from datetime import datetime
@@ -97,81 +98,84 @@ def execute_query():
 
     # Start async execution
     def run_workflow():
-        try:
-            llm = create_langchain_llm()
-            graph = create_chatbi_graph()
+        async def run_async():
+            try:
+                llm = create_langchain_llm()
+                graph = create_chatbi_graph()
 
-            config = {
-                "configurable": {
-                    "thread_id": f"thread-{datetime.now().timestamp()}"
-                },
-                "callbacks": [],  # No callbacks for web demo
-            }
+                config = {
+                    "configurable": {
+                        "thread_id": f"thread-{datetime.now().timestamp()}"
+                    },
+                    "callbacks": [],  # No callbacks for web demo
+                }
 
-            initial_state = {
-                "question": question,
-                "session_id": f"web-session-{datetime.now().timestamp()}",
-                "language": language,
-                "messages": [],
-                "sql_retry_count": 0,
-                "should_stop": False,
-                "table_schemas": SAMPLE_TABLE_SCHEMAS,
-                "db": None  # Demo mode without real database
-            }
+                initial_state = {
+                    "question": question,
+                    "session_id": f"web-session-{datetime.now().timestamp()}",
+                    "language": language,
+                    "messages": [],
+                    "sql_retry_count": 0,
+                    "should_stop": False,
+                    "table_schemas": SAMPLE_TABLE_SCHEMAS,
+                    "db": None  # Demo mode without real database
+                }
 
-            # Run synchronous workflow (more reliable in Flask thread)
-            event_count = 0
-            for event in graph.stream(initial_state, config=config):
-                for node_name, node_output in event.items():
-                    if node_name != "__end__":
-                        event_count += 1
-                        execution_status['current_node'] = node_name
+                # Run async workflow
+                event_count = 0
+                async for event in graph.astream(initial_state, config=config):
+                    for node_name, node_output in event.items():
+                        if node_name != "__end__":
+                            event_count += 1
+                            execution_status['current_node'] = node_name
 
-                        # Extract node results
-                        node_result = {
-                            "timestamp": datetime.now().isoformat(),
-                            "node": node_name,
-                            "status": "completed"
-                        }
+                            # Extract node results
+                            node_result = {
+                                "timestamp": datetime.now().isoformat(),
+                                "node": node_name,
+                                "status": "completed"
+                            }
 
-                        # Extract key information
-                        if "intent" in node_output and node_output["intent"]:
-                            node_result["intent"] = node_output["intent"]
+                            # Extract key information
+                            if "intent" in node_output and node_output["intent"]:
+                                node_result["intent"] = node_output["intent"]
 
-                        if "reasoning" in node_output and node_output["reasoning"]:
-                            node_result["reasoning"] = node_output["reasoning"][:200] + "..."
+                            if "reasoning" in node_output and node_output["reasoning"]:
+                                node_result["reasoning"] = node_output["reasoning"][:200] + "..."
 
-                        if "generated_sql" in node_output and node_output["generated_sql"]:
-                            node_result["sql"] = node_output["generated_sql"]
+                            if "generated_sql" in node_output and node_output["generated_sql"]:
+                                node_result["sql"] = node_output["generated_sql"]
 
-                        if "query_result" in node_output:
-                            if node_output["query_result"]:
-                                node_result["result_count"] = len(node_output["query_result"])
-                                node_result["result_preview"] = node_output["query_result"][:3]
-                            elif node_output.get("sql_error"):
-                                node_result["status"] = "failed"
-                                node_result["error"] = node_output["sql_error"]
-                                execution_status['nodes_failed'].append(node_name)
+                            if "query_result" in node_output:
+                                if node_output["query_result"]:
+                                    node_result["result_count"] = len(node_output["query_result"])
+                                    node_result["result_preview"] = node_output["query_result"][:3]
+                                elif node_output.get("sql_error"):
+                                    node_result["status"] = "failed"
+                                    node_result["error"] = node_output["sql_error"]
+                                    execution_status['nodes_failed'].append(node_name)
 
-                        if "chart_config" in node_output and node_output["chart_config"]:
-                            node_result["chart_type"] = node_output["chart_config"].get("chartType")
+                            if "chart_config" in node_output and node_output["chart_config"]:
+                                node_result["chart_type"] = node_output["chart_config"].get("chartType")
 
-                        if "answer" in node_output and node_output["answer"]:
-                            node_result["answer"] = node_output["answer"][:300] + "..."
+                            if "answer" in node_output and node_output["answer"]:
+                                node_result["answer"] = node_output["answer"][:300] + "..."
 
-                        execution_status['nodes_completed'].append(node_result)
-                        execution_status['results'][node_name] = node_result
+                            execution_status['nodes_completed'].append(node_result)
+                            execution_status['results'][node_name] = node_result
 
-            execution_status['status'] = 'completed'
-            execution_status['current_node'] = None
-            execution_status['end_time'] = datetime.now().isoformat()
-            execution_status['total_events'] = event_count
+                execution_status['status'] = 'completed'
+                execution_status['current_node'] = None
+                execution_status['end_time'] = datetime.now().isoformat()
+                execution_status['total_events'] = event_count
 
-        except Exception as e:
-            execution_status['status'] = 'failed'
-            execution_status['error'] = str(e)
-            execution_status['end_time'] = datetime.now().isoformat()
-            logger.error(f"Workflow execution failed: {e}")
+            except Exception as e:
+                execution_status['status'] = 'failed'
+                execution_status['error'] = str(e)
+                execution_status['end_time'] = datetime.now().isoformat()
+                logger.error(f"Workflow execution failed: {e}")
+
+        asyncio.run(run_async())
 
     # Run in background thread
     import threading

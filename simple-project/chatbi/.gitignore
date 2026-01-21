@@ -1,1 +1,8 @@
 .vscode/
+
+# Environment files (keep .simple.env for demo)
+.env
+langchain_chatbi/.env
+
+# IDE
+.idea/

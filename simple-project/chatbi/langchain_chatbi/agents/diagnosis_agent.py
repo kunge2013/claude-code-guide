@@ -65,7 +65,7 @@ Focus on actionable insights that help understand the business implications."""
 
         self._prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a Data Analyst expert. Analyze data and provide insights."),
-            ("human", self.SYSTEM_PROMPT)
+            ("human", "{format_instructions}\n\n" + self.SYSTEM_PROMPT)
         ])
 
         self._parser = PydanticOutputParser(pydantic_object=InsightSummary)
@@ -99,7 +99,8 @@ Focus on actionable insights that help understand the business implications."""
                 question=question,
                 sql=sql,
                 data_sample=formatted_sample,
-                row_count=len(data_sample)
+                row_count=len(data_sample),
+                format_instructions=self._parser.get_format_instructions()
             )
 
             response = await self._ainvoke(messages)

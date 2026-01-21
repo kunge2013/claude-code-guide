@@ -81,16 +81,16 @@ Ambiguity types:
         """
         super().__init__(name="IntentClassificationAgent", llm=llm, callbacks=callbacks)
 
-        # Create intent classification prompt
+        # Create intent classification prompt with format instructions
         self._intent_prompt = ChatPromptTemplate.from_messages([
             ("system", self.INTENT_SYSTEM_PROMPT),
-            ("human", "Question: {question}\n\nContext: {context}")
+            ("human", "Question: {question}\n\nContext: {context}\n\n{format_instructions}")
         ])
 
-        # Create ambiguity detection prompt
+        # Create ambiguity detection prompt with format instructions
         self._ambiguity_prompt = ChatPromptTemplate.from_messages([
             ("system", self.AMBIGUITY_SYSTEM_PROMPT),
-            ("human", "Question: {question}")
+            ("human", "Question: {question}\n\n{format_instructions}")
         ])
 
         # Create parsers
@@ -119,7 +119,8 @@ Ambiguity types:
         try:
             messages = self._intent_prompt.format_messages(
                 question=question,
-                context=context
+                context=context,
+                format_instructions=self._intent_parser.get_format_instructions()
             )
 
             # Use synchronous invoke
@@ -166,7 +167,8 @@ Ambiguity types:
         try:
             messages = self._intent_prompt.format_messages(
                 question=question,
-                context=context
+                context=context,
+                format_instructions=self._intent_parser.get_format_instructions()
             )
 
             # Use structured output
@@ -208,7 +210,8 @@ Ambiguity types:
 
         try:
             messages = self._ambiguity_prompt.format_messages(
-                question=question
+                question=question,
+                format_instructions=self._ambiguity_parser.get_format_instructions()
             )
 
             response = self._invoke(messages)
@@ -249,7 +252,8 @@ Ambiguity types:
 
         try:
             messages = self._ambiguity_prompt.format_messages(
-                question=question
+                question=question,
+                format_instructions=self._ambiguity_parser.get_format_instructions()
             )
 
             response = await self._ainvoke(messages)

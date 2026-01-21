@@ -101,7 +101,7 @@ Return a JSON object with chart configuration."""
 
         self._prompt = ChatPromptTemplate.from_messages([
             ("system", self.SYSTEM_PROMPT),
-            ("human", "{question}\n\n{query_metadata}\n\n{result_data}\n\nTotal rows: {row_count}")
+            ("human", "{question}\n\n{query_metadata}\n\n{result_data}\n\nTotal rows: {row_count}\n\n{format_instructions}")
         ])
 
         self._parser = PydanticOutputParser(pydantic_object=ChartConfig)
@@ -146,7 +146,8 @@ Return a JSON object with chart configuration."""
                 question=question,
                 query_metadata=json.dumps(query_metadata, indent=2, ensure_ascii=False),
                 result_data=json.dumps(result_data[:5], indent=2, ensure_ascii=False),
-                row_count=len(result_data)
+                row_count=len(result_data),
+                format_instructions=self._parser.get_format_instructions()
             )
 
             response = await self._ainvoke(messages)

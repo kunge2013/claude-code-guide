@@ -57,7 +57,9 @@ If a question can be answered with a single table, don't include unrelated table
 Available Tables:
 {table_schemas}
 
-Select the tables that are relevant to answering this question.""")
+Select the tables that are relevant to answering this question.
+
+{format_instructions}""")
         ])
 
         self._parser = PydanticOutputParser(pydantic_object=SchemaSelection)
@@ -86,7 +88,8 @@ Select the tables that are relevant to answering this question.""")
 
             messages = self._prompt.format_messages(
                 question=question,
-                table_schemas=formatted_schemas
+                table_schemas=formatted_schemas,
+                format_instructions=self._parser.get_format_instructions()
             )
 
             response = await self._ainvoke(messages)

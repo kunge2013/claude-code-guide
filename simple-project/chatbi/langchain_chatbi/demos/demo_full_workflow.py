@@ -94,7 +94,7 @@ async def main():
     print("=" * 60)
 
     # Check for API key
-    if not os.getenv("LLM_API_KEY"):
+    if not os.getenv("LLM_API_KEY", "2a4b3cfb15144a99bd19f7ede356dcd8.FFnDZ27A2JTZVPEk"):
         print("\n⚠️  LLM_API_KEY not set. Please set it to run this demo.")
         print("   Example: export LLM_API_KEY='your-api-key'")
         return

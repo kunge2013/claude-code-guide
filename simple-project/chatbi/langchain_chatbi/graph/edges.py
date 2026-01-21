@@ -2,13 +2,17 @@
 LangGraph Conditional Routing Functions
 
 Defines the conditional routing logic between nodes in the workflow.
+
+NOTE: Conditional routing functions MUST be synchronous in LangGraph,
+even when using async node functions. These functions are simple
+decision-makers that read state and return a route string.
 """
 
 from typing import Literal
 from langchain_chatbi.graph.state import ChatBIState
 
 
-def route_after_intent(state: ChatBIState) -> Literal["schema", "end", "__end__"]:
+def route_after_intent(state: ChatBIState) -> Literal["schema", "__end__"]:
     """
     Route after intent classification.
 
