@@ -12,11 +12,15 @@ import sqlite3
 from typing import Dict, Any, List
 from unittest.mock import Mock, AsyncMock, MagicMock
 
+from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Load .env file for environment variables (LLM_API_KEY, etc.)
+load_dotenv()
 
 
 # ============================================================================
