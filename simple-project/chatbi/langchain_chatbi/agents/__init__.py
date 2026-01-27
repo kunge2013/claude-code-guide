@@ -1,5 +1,6 @@
 # Agents module exports
 from langchain_chatbi.agents.base import LangChainAgentBase
+from langchain_chatbi.agents.db_agent import DbAgent
 from langchain_chatbi.agents.intent_agent import IntentClassificationAgent
 from langchain_chatbi.agents.schema_agent import SchemaAgent
 from langchain_chatbi.agents.sql_agent import SqlAgent
@@ -17,4 +18,5 @@ __all__ = [
     "ChartGenerationAgent",
     "DiagnosisAgent",
     "AnswerSummarizationAgent",
+    "DbAgent",
 ]

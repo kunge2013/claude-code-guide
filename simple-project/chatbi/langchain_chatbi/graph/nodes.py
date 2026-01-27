@@ -8,6 +8,7 @@ Each node takes the current state, runs its agent, and returns updated state.
 import asyncio
 from typing import Dict, Any, List
 from langchain_core.messages import AIMessage, HumanMessage
+import pymysql
 
 from langchain_chatbi.graph.state import ChatBIState
 from langchain_chatbi.llm.langchain_llm import create_langchain_llm
@@ -18,7 +19,7 @@ from langchain_chatbi.agents.reasoning_agent import QueryReasoningAgent
 from langchain_chatbi.agents.chart_agent import ChartGenerationAgent
 from langchain_chatbi.agents.diagnosis_agent import DiagnosisAgent
 from langchain_chatbi.agents.answer_agent import AnswerSummarizationAgent
-
+from langchain_chatbi.agents.db_agent import DbAgent
 
 async def intent_node(state: ChatBIState) -> Dict[str, Any]:
     """
@@ -133,11 +134,35 @@ async def sql_node(state: ChatBIState) -> Dict[str, Any]:
         }
 
 
+async def db_type(state: ChatBIState) -> Dict[str, Any]:
+    """
+    SQL generation node.
+
+    Generates SQL from natural language with error correction.
+    """
+    llm = create_langchain_llm()
+    agent = DbAgent(llm=llm)
+
+    # Check if we're in error correction mode
+    if state.get("dbtype"):
+        return {
+            "dbtype": state.get("dbtype")
+        }
+    else:
+        # Generate initial SQL
+        db_type = await agent.select_db(
+            question=state["question"]
+        )
+        return {
+            "dbtype": db_type.dbtype
+        }
+
 async def execution_node(state: ChatBIState) -> Dict[str, Any]:
     """
     SQL execution node.
 
-    Executes the SQL query against the database.
+    Executes the SQL query against MySQL database.
+    Supports both MySQL connection and demo mode.
     """
     import concurrent.futures
 
@@ -160,13 +185,18 @@ async def execution_node(state: ChatBIState) -> Dict[str, Any]:
         }
 
     try:
+        # Get SQL from state
+        sql = state.get("generated_sql")
+        if not sql:
+            raise ValueError("No SQL to execute")
+
         # Run SQL execution in thread pool (synchronous DB call)
         loop = asyncio.get_event_loop()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             result = await loop.run_in_executor(
                 executor,
                 db.run,
-                state["generated_sql"]
+                sql
             )
 
         # Convert to list of dicts if needed
@@ -181,6 +211,13 @@ async def execution_node(state: ChatBIState) -> Dict[str, Any]:
             "messages": [AIMessage(content=f"Query executed successfully, returned {len(query_result)} rows")]
         }
 
+    except pymysql.MySQLError as e:
+        # Return MySQL-specific error for correction
+        error_msg = f"MySQL Error: {str(e)}"
+        return {
+            "sql_error": error_msg,
+            "messages": [AIMessage(content=f"SQL execution failed: {error_msg}")]
+        }
     except Exception as e:
         return {
             "sql_error": str(e),
@@ -197,10 +234,30 @@ async def chart_node(state: ChatBIState) -> Dict[str, Any]:
     llm = create_langchain_llm()
     agent = ChartGenerationAgent(llm=llm)
 
+    # Build query metadata from result data
+    result_data = state["query_result"] or []
+    query_metadata = {}
+
+    if result_data:
+        columns = list(result_data[0].keys())
+        # Simple heuristic: first column is dimension, rest are measures
+        if len(columns) >= 2:
+            query_metadata = {
+                "dimensions": [columns[0]],
+                "measures": columns[1:],
+                "timeDimensions": []  # Can be enhanced with date detection
+            }
+        elif len(columns) == 1:
+            query_metadata = {
+                "dimensions": [],
+                "measures": [columns[0]],
+                "timeDimensions": []
+            }
+
     chart_config = await agent.generate_chart(
         question=state["question"],
-        query_metadata={},
-        result_data=state["query_result"] or []
+        query_metadata=query_metadata,
+        result_data=result_data
     )
 
     return {

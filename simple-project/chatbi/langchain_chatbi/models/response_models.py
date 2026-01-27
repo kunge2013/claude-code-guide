@@ -261,3 +261,25 @@ class AnswerSummary(BaseModel):
     recommendations: Optional[List[str]] = Field(
         default=None, description="Optional actionable recommendations"
     )
+
+
+# ============================================================================
+# SQL Generation Models
+# ============================================================================
+
+
+class DbResponse(BaseModel):
+    """
+    Result of SQL generation.
+
+    Attributes:
+        sql: The generated SQL query
+        explanation: Explanation of what the SQL does
+        confidence: Confidence in the SQL (0.0-1.0)
+    """
+
+    dbtype: str = Field(description="db type", default="mysql")
+    reason: str = Field(description="Why this db is relevant to the question", default="unknow reason")
+    confidence: float = Field(
+        default=0.8, ge=0.0, le=1.0, description="Confidence in the db (0.0-1.0)"
+    )

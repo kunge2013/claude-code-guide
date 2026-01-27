@@ -18,6 +18,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from langchain_chatbi import create_chatbi_graph
 from langchain_chatbi.llm import create_langchain_llm
 
+# Load environment variables
+from dotenv import load_dotenv
+from langchain_chatbi.db.mysql_db import create_mysql_connection
+
+load_dotenv()
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'chatbi-secret-key'
@@ -110,6 +116,25 @@ def execute_query():
                     "callbacks": [],  # No callbacks for web demo
                 }
 
+                # Create MySQL connection
+                mysql_conn = None
+                table_schemas = SAMPLE_TABLE_SCHEMAS
+
+                try:
+                    mysql_conn = create_mysql_connection()
+                    # Test connection
+                    if mysql_conn.test_connection():
+                        logger.info("MySQL connected successfully")
+                        # Get real table schemas
+                        table_schemas = mysql_conn.get_all_schemas()
+                        logger.info(f"Loaded {len(table_schemas)} table schemas")
+                    else:
+                        logger.warning("MySQL connection failed, falling back to demo mode")
+                        mysql_conn = None
+                except Exception as e:
+                    logger.error(f"MySQL initialization error: {e}, falling back to demo mode")
+                    mysql_conn = None
+
                 initial_state = {
                     "question": question,
                     "session_id": f"web-session-{datetime.now().timestamp()}",
@@ -117,8 +142,8 @@ def execute_query():
                     "messages": [],
                     "sql_retry_count": 0,
                     "should_stop": False,
-                    "table_schemas": SAMPLE_TABLE_SCHEMAS,
-                    "db": None  # Demo mode without real database
+                    "table_schemas": table_schemas,
+                    "db": mysql_conn  # Use real MySQL connection or None (fallback to demo)
                 }
 
                 # Run async workflow
@@ -129,12 +154,18 @@ def execute_query():
                             event_count += 1
                             execution_status['current_node'] = node_name
 
-                            # Extract node results
+                            # Extract node results - handle None output
                             node_result = {
                                 "timestamp": datetime.now().isoformat(),
                                 "node": node_name,
                                 "status": "completed"
                             }
+
+                            # Skip processing if node_output is None
+                            if node_output is None:
+                                execution_status['nodes_completed'].append(node_result)
+                                execution_status['results'][node_name] = node_result
+                                continue
 
                             # Extract key information
                             if "intent" in node_output and node_output["intent"]:
@@ -150,16 +181,28 @@ def execute_query():
                                 if node_output["query_result"]:
                                     node_result["result_count"] = len(node_output["query_result"])
                                     node_result["result_preview"] = node_output["query_result"][:3]
+                                    node_result["query_result"] = node_output["query_result"]
                                 elif node_output.get("sql_error"):
                                     node_result["status"] = "failed"
                                     node_result["error"] = node_output["sql_error"]
                                     execution_status['nodes_failed'].append(node_name)
 
                             if "chart_config" in node_output and node_output["chart_config"]:
-                                node_result["chart_type"] = node_output["chart_config"].get("chartType")
+                                chart_config = node_output["chart_config"]
+                                # Handle Pydantic model dict conversion
+                                if hasattr(chart_config, 'model_dump'):
+                                    chart_config = chart_config.model_dump()
+                                elif hasattr(chart_config, 'dict'):
+                                    chart_config = chart_config.dict()
+                                node_result["chart_config"] = chart_config
+                                node_result["chart_type"] = chart_config.get("chartType")
 
                             if "answer" in node_output and node_output["answer"]:
                                 node_result["answer"] = node_output["answer"][:300] + "..."
+
+                            # 数据库类型判断
+                            if "dbtype" in node_output and node_output["dbtype"]:
+                                node_result["dbtype"] = node_output["dbtype"]
 
                             execution_status['nodes_completed'].append(node_result)
                             execution_status['results'][node_name] = node_result
@@ -174,6 +217,15 @@ def execute_query():
                 execution_status['error'] = str(e)
                 execution_status['end_time'] = datetime.now().isoformat()
                 logger.error(f"Workflow execution failed: {e}")
+
+            finally:
+                # Cleanup database connection
+                if mysql_conn:
+                    try:
+                        mysql_conn.disconnect()
+                        logger.info("MySQL connection closed")
+                    except Exception as e:
+                        logger.error(f"Error closing MySQL connection: {e}")
 
         asyncio.run(run_async())
 

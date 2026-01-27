@@ -29,13 +29,13 @@ def route_after_intent(state: ChatBIState) -> Literal["schema", "__end__"]:
         return "__end__"
 
 
-def route_after_execution(state: ChatBIState) -> Literal["sql", "chart", "__end__"]:
+def route_after_execution(state: ChatBIState) -> Literal["sql", "parallel_analysis", "__end__"]:
     """
     Route after SQL execution.
 
     - SQL error and retry count < 3 → retry SQL generation
     - SQL error and retry count >= 3 → end with error
-    - Success → proceed to chart generation
+    - Success → proceed to parallel analysis (chart + diagnosis)
     """
     if state.get("sql_error"):
         retry_count = state.get("sql_retry_count", 0)
@@ -45,4 +45,4 @@ def route_after_execution(state: ChatBIState) -> Literal["sql", "chart", "__end_
             # Max retries exceeded, end workflow
             return "__end__"
     else:
-        return "chart"
+        return "parallel_analysis"  # Parallel chart + diagnosis

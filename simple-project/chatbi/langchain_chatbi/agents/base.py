@@ -92,22 +92,18 @@ class LangChainAgentBase:
         """
         config = self._get_invoke_config(**kwargs)
         try:
-            # Try async invoke with timeout
+            # Try async invoke with shorter timeout
             response = await asyncio.wait_for(
                 self.llm.ainvoke(messages, config=config),
-                timeout=60.0  # 60 second timeout
+                timeout=30.0  # 30 second timeout for faster feedback
             )
             return response
         except asyncio.TimeoutError:
-            logger.warning(f"[{self.name}]: Async invoke timed out, falling back to sync")
-            # Fallback to synchronous invoke
-            response = self.llm.invoke(messages, config=config)
-            return response
+            logger.error(f"[{self.name}]: Async invoke timed out after 30s")
+            raise TimeoutError(f"LLM call timed out for {self.name}. Please try again or check your API connection.")
         except Exception as e:
-            logger.error(f"[{self.name}]: Async invoke failed: {e}, falling back to sync")
-            # Fallback to synchronous invoke on error
-            response = self.llm.invoke(messages, config=config)
-            return response
+            logger.error(f"[{self.name}]: Async invoke failed: {e}")
+            raise
 
     async def _astream(
         self,

@@ -6,9 +6,13 @@ Integrates with existing ChatBI configuration to create LangChain ChatModel inst
 
 import os
 from typing import Optional
+from functools import lru_cache
 
 from langchain_openai import ChatOpenAI
 from loguru import logger
+
+# Global LLM cache to reuse instances
+_llm_cache: dict = {}
 
 
 def create_langchain_llm(
@@ -20,9 +24,10 @@ def create_langchain_llm(
     streaming: bool = True,
 ) -> ChatOpenAI:
     """
-    Create a LangChain ChatOpenAI instance.
+    Create a LangChain ChatOpenAI instance (cached).
 
     Uses environment variables if parameters are not provided.
+    LLM instances are cached based on configuration to avoid redundant initialization.
 
     Environment Variables:
         LLM_API_KEY: API key for the LLM provider
@@ -49,6 +54,14 @@ def create_langchain_llm(
     temperature = float(os.getenv("LLM_TEMPERATURE", str(temperature)))
     max_tokens = int(os.getenv("LLM_MAX_TOKENS", str(max_tokens)))
 
+    # Create cache key from configuration
+    cache_key = f"{model}:{base_url}:{temperature}:{max_tokens}:{streaming}"
+
+    # Return cached instance if available
+    if cache_key in _llm_cache:
+        return _llm_cache[cache_key]
+
+    # Create new instance
     llm = ChatOpenAI(
         model=model,
         api_key=api_key,
@@ -62,6 +75,9 @@ def create_langchain_llm(
         f"Created LangChain LLM: model={model}, base_url={base_url}, "
         f"temperature={temperature}, streaming={streaming}"
     )
+
+    # Cache for reuse
+    _llm_cache[cache_key] = llm
 
     return llm
 

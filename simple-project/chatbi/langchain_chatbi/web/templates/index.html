@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LangChain ChatBI - Agent Monitor</title>
+    <title>ChatBI - Intelligent Data Analysis</title>
     <style>
         * {
             margin: 0;
@@ -12,263 +12,379 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .header h1 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .main-grid {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 20px;
-        }
-
-        .control-panel {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            height: fit-content;
-        }
-
-        .control-panel h3 {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 16px;
-        }
-
-        .input-group {
-            margin-bottom: 16px;
-        }
-
-        .input-group label {
-            display: block;
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 6px;
-        }
-
-        .input-group input,
-        .input-group textarea {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .input-group input:focus,
-        .input-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .btn-group {
+        .app-container {
             display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e1e8ed;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h1 {
+            font-size: 22px;
+            color: #fff;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
             gap: 10px;
         }
 
-        .btn {
-            flex: 1;
-            padding: 12px 20px;
-            border: none;
+        .sidebar-header h1::before {
+            content: '';
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 8px;
+            display: inline-block;
+        }
+
+        .new-chat-btn {
+            margin: 16px 20px;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px dashed rgba(255,255,255,0.3);
+            border-radius: 12px;
+            color: #fff;
             font-size: 14px;
-            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        .btn-primary {
+        .new-chat-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .new-chat-btn::before {
+            content: '+';
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 12px;
+        }
+
+        .chat-history-section {
+            padding: 12px 8px 8px;
+        }
+
+        .chat-history-section-title {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 8px 8px;
+        }
+
+        .chat-history-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-history-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .chat-history-item.active {
+            background: rgba(102, 126, 234, 0.3);
+            color: #fff;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #fff;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            background: #f5f5f5;
-            color: #333;
-        }
-
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 16px;
         }
 
-        .status-idle {
-            background: #e3f2fd;
-            color: #1976d2;
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
         }
 
-        .status-running {
-            background: #fff3e0;
+        /* Main Chat Area */
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e1e8ed;
+            background: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .chat-header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .header-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+        }
+
+        .header-btn:hover {
+            background: #f5f7fa;
+        }
+
+        /* Messages Container */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 24px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .message.user .message-avatar {
+            margin-left: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .message.assistant .message-avatar {
+            margin-right: 12px;
+            background: #10a37f;
+            color: #fff;
+        }
+
+        .message-content {
+            max-width: 70%;
+        }
+
+        .message.user .message-content {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-bubble {
+            background: #fff;
+            color: #1a1a1a;
+            border: 1px solid #e1e8ed;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 6px;
+            padding: 0 4px;
+        }
+
+        .message.user .message-time {
+            text-align: right;
+        }
+
+        /* Workflow Status in Message */
+        .workflow-status {
+            margin-top: 12px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e1e8ed;
+            overflow: hidden;
+        }
+
+        .workflow-status-header {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e1e8ed;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workflow-status-header.status-running {
             color: #f57c00;
+        }
+
+        .workflow-status-header.status-completed {
+            color: #10a37f;
+        }
+
+        .workflow-status-header.status-failed {
+            color: #ef4444;
+        }
+
+        .workflow-diagram {
+            padding: 12px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            background: #fff;
+        }
+
+        .workflow-node {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .workflow-node.pending {
+            background: #e0e0e0;
+            color: #999;
+        }
+
+        .workflow-node.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
             animation: pulse 1.5s infinite;
         }
 
-        .status-completed {
-            background: #e8f5e9;
-            color: #388e3c;
+        .workflow-node.completed {
+            background: #10a37f;
+            color: #fff;
         }
 
-        .status-failed {
-            background: #ffebee;
-            color: #d32f2f;
+        .workflow-node.failed {
+            background: #ef4444;
+            color: #fff;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.6; }
         }
 
-        .workflow-panel {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .workflow-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .workflow-header h3 {
-            font-size: 18px;
-            color: #333;
-        }
-
-        .workflow-diagram {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 24px;
-            padding: 20px;
+        .workflow-details {
+            padding: 12px 16px;
             background: #f8f9fa;
-            border-radius: 12px;
-            overflow-x: auto;
+            border-top: 1px solid #e1e8ed;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
-        .node {
-            padding: 10px 16px;
-            border-radius: 8px;
+        .workflow-detail-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .workflow-detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .workflow-detail-title {
             font-size: 12px;
-            font-weight: 600;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
-
-        .node-pending {
-            background: #e0e0e0;
-            color: #999;
-        }
-
-        .node-active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-
-        .node-completed {
-            background: #4caf50;
-            color: white;
-        }
-
-        .node-failed {
-            background: #f44336;
-            color: white;
-        }
-
-        .arrow {
-            color: #999;
-            font-size: 18px;
-        }
-
-        .node-details {
-            margin-top: 20px;
-        }
-
-        .node-card {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-        }
-
-        .node-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .node-card-title {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .node-card-time {
-            font-size: 12px;
-            color: #999;
-        }
-
-        .node-card-content {
-            font-size: 13px;
             color: #666;
-            line-height: 1.6;
+            margin-bottom: 4px;
         }
 
-        .node-card-content code {
-            background: white;
+        .workflow-detail-content {
+            font-size: 13px;
+            color: #333;
+        }
+
+        .workflow-detail-content code {
+            background: #fff;
             padding: 2px 6px;
             border-radius: 4px;
             font-family: 'Monaco', monospace;
@@ -276,163 +392,460 @@
             color: #d63384;
         }
 
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 16px;
+        /* Chart Container */
+        .chart-container {
+            margin-top: 12px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e1e8ed;
         }
 
-        .info-item {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
+        .chart-header {
+            margin-bottom: 12px;
         }
 
-        .info-label {
-            font-size: 12px;
-            color: #999;
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
             margin-bottom: 4px;
         }
 
-        .info-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
+        .chart-description {
+            font-size: 12px;
+            color: #666;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 40px;
+        .chart-wrapper {
+            width: 100%;
+            height: 300px;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px;
+            background: #fff;
+            border-top: 1px solid #e1e8ed;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-box {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-box textarea {
+            width: 100%;
+            min-height: 48px;
+            max-height: 150px;
+            padding: 12px 16px;
+            border: 1px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-box textarea:focus {
+            border-color: #667eea;
+        }
+
+        .input-box textarea::placeholder {
             color: #999;
         }
 
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            margin-bottom: 16px;
+        .send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
             opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .send-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #fff;
+        }
+
+        .input-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        /* Loading Indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #ccc;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0,0,0,0.3);
+        }
+
+        /* Welcome Message */
+        .welcome-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .welcome-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: #fff;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .welcome-subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 32px;
+        }
+
+        .suggestion-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .suggestion-card {
+            padding: 16px;
+            background: #fff;
+            border: 1px solid #e1e8ed;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .suggestion-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .suggestion-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .suggestion-card-desc {
+            font-size: 12px;
+            color: #666;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>🤖 LangChain ChatBI Agent Monitor</h1>
-            <p>Real-time visualization of agent execution workflow</p>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>ChatBI</h1>
+            </div>
+
+            <button class="new-chat-btn" onclick="resetChat()">New Chat</button>
+
+            <div class="chat-history">
+                <div class="chat-history-section">
+                    <div class="chat-history-section-title">Today</div>
+                    <div class="chat-history-item active">Top 5 Products Analysis</div>
+                    <div class="chat-history-item">Sales Trend Analysis</div>
+                </div>
+                <div class="chat-history-section">
+                    <div class="chat-history-section-title">Yesterday</div>
+                    <div class="chat-history-item">Category Distribution</div>
+                    <div class="chat-history-item">Revenue by Region</div>
+                </div>
+                <div class="chat-history-section">
+                    <div class="chat-history-section-title">Previous 7 Days</div>
+                    <div class="chat-history-item">Customer Insights</div>
+                    <div class="chat-history-item">Product Performance</div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">U</div>
+                    <div class="user-name">User</div>
+                </div>
+            </div>
         </div>
 
-        <div class="main-grid">
-            <!-- Control Panel -->
-            <div class="control-panel">
-                <h3>Query Input</h3>
-
-                <div id="statusBadge" class="status-badge status-idle">Ready</div>
-
-                <div class="input-group">
-                    <label for="question">Question</label>
-                    <textarea id="question" rows="3" placeholder="Enter your question...">Show me the top 5 products by sales</textarea>
+        <!-- Main Chat Area -->
+        <div class="main-chat">
+            <div class="chat-header">
+                <div class="chat-header-title">Data Analysis Assistant</div>
+                <div class="chat-header-actions">
+                    <button class="header-btn" onclick="resetChat()">Clear Chat</button>
                 </div>
+            </div>
 
-                <div class="input-group">
-                    <label for="language">Language</label>
-                    <input id="language" type="text" value="zh-CN" placeholder="zh-CN or en-US">
-                </div>
-
-                <div class="btn-group">
-                    <button id="executeBtn" class="btn btn-primary" onclick="executeQuery()">
-                        Execute Query
-                    </button>
-                    <button id="resetBtn" class="btn btn-secondary" onclick="resetExecution()">
-                        Reset
-                    </button>
-                </div>
-
-                <div class="info-grid" id="infoGrid" style="display: none;">
-                    <div class="info-item">
-                        <div class="info-label">Start Time</div>
-                        <div class="info-value" id="startTime">-</div>
+            <div class="messages-container" id="messagesContainer">
+                <div class="welcome-container" id="welcomeContainer">
+                    <div class="welcome-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 013 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15zM5 8.95v6.7l6 3.38v-6.7l-6-3.38zm14 6.7v-6.7l-6 3.38v6.7l6-3.38z"/>
+                        </svg>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Duration</div>
-                        <div class="info-value" id="duration">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Events</div>
-                        <div class="info-value" id="eventCount">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Nodes</div>
-                        <div class="info-value" id="nodeCount">-</div>
+                    <div class="welcome-title">Welcome to ChatBI</div>
+                    <div class="welcome-subtitle">Your intelligent data analysis assistant</div>
+                    <div class="suggestion-cards">
+                        <div class="suggestion-card" onclick="sendSuggestion('Show me the top 5 products by sales')">
+                            <div class="suggestion-card-title">Top Products</div>
+                            <div class="suggestion-card-desc">Analyze best-selling products</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Display sales trend over the last 6 months')">
+                            <div class="suggestion-card-title">Sales Trend</div>
+                            <div class="suggestion-card-desc">View sales over time</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Show category distribution by revenue')">
+                            <div class="suggestion-card-title">Categories</div>
+                            <div class="suggestion-card-desc">Revenue by category</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Compare performance across regions')">
+                            <div class="suggestion-card-title">Regional Analysis</div>
+                            <div class="suggestion-card-desc">Compare regions</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Workflow Panel -->
-            <div class="workflow-panel">
-                <div class="workflow-header">
-                    <h3>Workflow Visualization</h3>
-                </div>
-
-                <!-- Workflow Diagram -->
-                <div class="workflow-diagram" id="workflowDiagram">
-                    <span class="node node-pending" data-node="intent">intent</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="schema">schema</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="reasoning">reasoning</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="sql">sql</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="execution">execution</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="chart">chart</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="diagnosis">diagnosis</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="answer">answer</span>
-                    <span class="arrow">→</span>
-                    <span class="node node-pending" data-node="end">END</span>
-                </div>
-
-                <!-- Node Details -->
-                <div class="node-details" id="nodeDetails">
-                    <div class="empty-state">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <p>Execute a query to see agent details</p>
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-box">
+                        <textarea id="messageInput" placeholder="Ask me anything about your data..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
                     </div>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
                 </div>
+                <div class="input-hint">Press Enter to send, Shift+Enter for new line</div>
             </div>
         </div>
     </div>
 
     <script>
         let eventSource = null;
+        let currentMessageId = null;
+        let currentChartInstance = null;
+        let currentWorkflowElement = null;
+
+        // Send suggestion
+        function sendSuggestion(text) {
+            document.getElementById('messageInput').value = text;
+            sendMessage();
+        }
+
+        // Handle key down
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Auto-resize textarea
+        const textarea = document.getElementById('messageInput');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Hide welcome container
+            document.getElementById('welcomeContainer').style.display = 'none';
+
+            // Add user message
+            addMessage('user', message);
+
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Disable send button
+            document.getElementById('sendBtn').disabled = true;
+
+            // Create assistant message with workflow status
+            currentMessageId = Date.now();
+            const workflowElement = addMessageWithWorkflow('assistant', currentMessageId);
+            currentWorkflowElement = workflowElement;
+
+            // Execute query
+            await executeQuery(message);
+        }
+
+        // Add message to chat
+        function addMessage(role, content) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + role;
+
+            const avatar = role === 'user' ? 'U' : 'AI';
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">
+                    <div class="message-bubble">${escapeHtml(content)}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Add message with workflow status
+        function addMessageWithWorkflow(role, messageId) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + role;
+            messageDiv.id = 'message-' + messageId;
+
+            const avatar = role === 'user' ? 'U' : 'AI';
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        <div class="typing-indicator" id="typing-${messageId}">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                    <div class="workflow-status" id="workflow-${messageId}" style="display: none;">
+                        <div class="workflow-status-header status-running" id="workflow-header-${messageId}">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            <span id="workflow-status-text-${messageId}">Processing...</span>
+                        </div>
+                        <div class="workflow-diagram" id="workflow-diagram-${messageId}">
+                            <span class="workflow-node pending" data-node="intent">intent</span>
+                            <span class="workflow-node pending" data-node="schema">schema</span>
+                            <span class="workflow-node pending" data-node="reasoning">reasoning</span>
+                            <span class="workflow-node pending" data-node="sql">sql</span>
+                            <span class="workflow-node pending" data-node="dbtype">dbtype</span>
+                            <span class="workflow-node pending" data-node="execution">execution</span>
+                            <span class="workflow-node pending" data-node="chart">chart</span>
+                            <span class="workflow-node pending" data-node="answer">answer</span>
+                        </div>
+                        <div class="workflow-details" id="workflow-details-${messageId}"></div>
+                    </div>
+                    <div id="chart-container-${messageId}"></div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+
+            return messageDiv;
+        }
 
         // Execute query
-        async function executeQuery() {
-            const question = document.getElementById('question').value;
-            const language = document.getElementById('language').value;
-
-            if (!question) {
-                alert('Please enter a question');
-                return;
-            }
-
-            // Disable button
-            document.getElementById('executeBtn').disabled = true;
-            document.getElementById('infoGrid').style.display = 'grid';
-
+        async function executeQuery(question) {
             try {
                 const response = await fetch('/api/execute', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ question, language })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, language: 'zh-CN' })
                 });
 
                 if (response.ok) {
@@ -440,7 +853,7 @@
                 }
             } catch (error) {
                 console.error('Error executing query:', error);
-                document.getElementById('executeBtn').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
             }
         }
 
@@ -454,138 +867,234 @@
 
             eventSource.onmessage = function(event) {
                 const status = JSON.parse(event.data);
-                updateUI(status);
+                updateWorkflow(status);
             };
 
             eventSource.onerror = function() {
                 eventSource.close();
-                document.getElementById('executeBtn').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
             };
         }
 
-        // Update UI with status
-        function updateUI(status) {
-            // Update status badge
-            const statusBadge = document.getElementById('statusBadge');
-            statusBadge.className = 'status-badge status-' + status.status;
-            statusBadge.textContent = status.status.charAt(0).toUpperCase() + status.status.slice(1);
+        // Update workflow status
+        function updateWorkflow(status) {
+            if (!currentMessageId) return;
+
+            const workflowStatus = document.getElementById(`workflow-${currentMessageId}`);
+            const workflowHeader = document.getElementById(`workflow-header-${currentMessageId}`);
+            const workflowText = document.getElementById(`workflow-status-text-${currentMessageId}`);
+            const workflowDiagram = document.getElementById(`workflow-diagram-${currentMessageId}`);
+            const workflowDetails = document.getElementById(`workflow-details-${currentMessageId}`);
+            const typingIndicator = document.getElementById(`typing-${currentMessageId}`);
+            const messageBubble = typingIndicator?.parentElement;
+
+            // Hide typing indicator and show workflow
+            if (typingIndicator) typingIndicator.style.display = 'none';
+            if (workflowStatus) workflowStatus.style.display = 'block';
+
+            // Update status text and color
+            const statusText = status.status.charAt(0).toUpperCase() + status.status.slice(1);
+            if (workflowText) workflowText.textContent = statusText;
+
+            if (workflowHeader) {
+                workflowHeader.className = 'workflow-status-header status-' + status.status;
+            }
 
             // Update workflow diagram
-            updateWorkflowDiagram(status);
+            if (workflowDiagram) {
+                const nodes = workflowDiagram.querySelectorAll('.workflow-node');
+                const completedNodes = status.nodes_completed.map(n => n.node);
+                const failedNodes = status.nodes_failed;
+                const currentNode = status.current_node;
 
-            // Update info grid
-            if (status.start_time) {
-                document.getElementById('startTime').textContent = new Date(status.start_time).toLocaleTimeString();
+                nodes.forEach(node => {
+                    const nodeName = node.getAttribute('data-node');
+                    node.className = 'workflow-node';
+
+                    if (failedNodes.includes(nodeName)) {
+                        node.classList.add('failed');
+                    } else if (nodeName === currentNode) {
+                        node.classList.add('active');
+                    } else if (completedNodes.includes(nodeName)) {
+                        node.classList.add('completed');
+                    } else {
+                        node.classList.add('pending');
+                    }
+                });
             }
 
-            if (status.end_time && status.start_time) {
-                const duration = Math.round((new Date(status.end_time) - new Date(status.start_time)) / 1000);
-                document.getElementById('duration').textContent = duration + 's';
+            // Update workflow details
+            if (workflowDetails && status.nodes_completed.length > 0) {
+                let detailsHtml = '';
+                status.nodes_completed.slice().reverse().forEach(result => {
+                    detailsHtml += '<div class="workflow-detail-item">';
+                    detailsHtml += '<div class="workflow-detail-title">' + result.node + '</div>';
+
+                    if (result.sql) {
+                        detailsHtml += '<div class="workflow-detail-content">SQL: <code>' + escapeHtml(result.sql) + '</code></div>';
+                    }
+                    if (result.result_count !== undefined) {
+                        detailsHtml += '<div class="workflow-detail-content">Results: ' + result.result_count + ' rows</div>';
+                    }
+                    if (result.chart_type) {
+                        detailsHtml += '<div class="workflow-detail-content">Chart: <code>' + result.chart_type + '</code></div>';
+                    }
+                    if (result.answer) {
+                        detailsHtml += '<div class="workflow-detail-content">' + escapeHtml(result.answer) + '</div>';
+                    }
+
+                    detailsHtml += '</div>';
+                });
+                workflowDetails.innerHTML = detailsHtml;
             }
 
-            if (status.total_events !== undefined) {
-                document.getElementById('eventCount').textContent = status.total_events;
+            // Render chart when data is ready
+            if (status.status === 'completed' || status.status === 'failed') {
+                const chartNode = status.nodes_completed.find(n => n.chart_config);
+                const executionNode = status.nodes_completed.find(n => n.query_result);
+
+                if (chartNode && executionNode) {
+                    renderChart(currentMessageId, chartNode.chart_config, executionNode.query_result);
+                }
+
+                // Add final answer to message bubble
+                const answerNode = status.nodes_completed.find(n => n.answer);
+                if (answerNode && messageBubble) {
+                    // Remove typing indicator
+                    if (typingIndicator) typingIndicator.remove();
+
+                    // Add answer text
+                    const answerDiv = document.createElement('div');
+                    answerDiv.innerHTML = answerNode.answer;
+                    messageBubble.appendChild(answerDiv);
+                }
+
+                document.getElementById('sendBtn').disabled = false;
             }
-
-            document.getElementById('nodeCount').textContent = status.nodes_completed.length;
-
-            // Update node details
-            updateNodeDetails(status);
         }
 
-        // Update workflow diagram
-        function updateWorkflowDiagram(status) {
-            const nodes = document.querySelectorAll('[data-node]');
-            const completedNodes = status.nodes_completed.map(n => n.node);
-            const failedNodes = status.nodes_failed;
-            const currentNode = status.current_node;
+        // Render chart
+        function renderChart(messageId, chartConfig, queryResult) {
+            const container = document.getElementById(`chart-container-${messageId}`);
+            if (!container || !chartConfig || !queryResult || queryResult.length === 0) return;
 
-            nodes.forEach(node => {
-                const nodeName = node.getAttribute('data-node');
-                node.className = 'node';
+            const chartId = `echart-${messageId}`;
+            container.innerHTML = `
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <div class="chart-title">${escapeHtml(chartConfig.title || 'Chart')}</div>
+                        <div class="chart-description">${escapeHtml(chartConfig.description || '')}</div>
+                    </div>
+                    <div class="chart-wrapper" id="${chartId}"></div>
+                </div>
+            `;
 
-                if (failedNodes.includes(nodeName)) {
-                    node.classList.add('node-failed');
-                } else if (nodeName === currentNode) {
-                    node.classList.add('node-active');
-                } else if (completedNodes.includes(nodeName)) {
-                    node.classList.add('node-completed');
-                } else {
-                    node.classList.add('node-pending');
-                }
-            });
-        }
-
-        // Update node details
-        function updateNodeDetails(status) {
-            const container = document.getElementById('nodeDetails');
-
-            if (status.nodes_completed.length === 0) {
-                return;
+            if (currentChartInstance) {
+                currentChartInstance.dispose();
             }
 
-            let html = '';
-            status.nodes_completed.slice().reverse().forEach(result => {
-                html += '<div class="node-card">';
-                html += '<div class="node-card-header">';
-                html += '<span class="node-card-title">' + result.node + '</span>';
-                html += '<span class="node-card-time">' + new Date(result.timestamp).toLocaleTimeString() + '</span>';
-                html += '</div>';
+            const chartDom = document.getElementById(chartId);
+            currentChartInstance = echarts.init(chartDom);
+            currentChartInstance.setOption(generateEChartsOption(chartConfig, queryResult));
 
-                // Add content based on node type
-                if (result.intent) {
-                    html += '<div class="node-card-content">';
-                    html += 'Intent: <code>' + result.intent + '</code>';
-                    html += '</div>';
-                }
-
-                if (result.reasoning) {
-                    html += '<div class="node-card-content">';
-                    html += '<strong>Reasoning:</strong> ' + result.reasoning;
-                    html += '</div>';
-                }
-
-                if (result.sql) {
-                    html += '<div class="node-card-content">';
-                    html += '<strong>SQL:</strong> <code>' + result.sql + '</code>';
-                    html += '</div>';
-                }
-
-                if (result.result_count !== undefined) {
-                    html += '<div class="node-card-content">';
-                    html += 'Results: ' + result.result_count + ' rows';
-                    html += '</div>';
-                }
-
-                if (result.chart_type) {
-                    html += '<div class="node-card-content">';
-                    html += 'Chart: <code>' + result.chart_type + '</code>';
-                    html += '</div>';
-                }
-
-                if (result.answer) {
-                    html += '<div class="node-card-content">';
-                    html += '<strong>Answer:</strong> ' + result.answer;
-                    html += '</div>';
-                }
-
-                if (result.error) {
-                    html += '<div class="node-card-content" style="color: #d32f2f;">';
-                    html += '<strong>Error:</strong> ' + result.error;
-                    html += '</div>';
-                }
-
-                html += '</div>';
+            window.addEventListener('resize', () => {
+                if (currentChartInstance) currentChartInstance.resize();
             });
 
-            container.innerHTML = html;
+            // Scroll to chart
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        // Reset execution
-        async function resetExecution() {
+        // Generate ECharts option
+        function generateEChartsOption(chartConfig, data) {
+            const chartType = chartConfig.chartType;
+            const spec = chartConfig.spec || {};
+            const style = chartConfig.style || {};
+
+            const xField = spec.xField;
+            const yField = spec.yField;
+            const colorField = spec.colorField;
+            const angleField = spec.angleField;
+
+            const xAxisData = data.map(item => item[xField] || item[colorField]);
+            const seriesData = data.map(item => {
+                const val = item[yField] || item[angleField];
+                return typeof val === 'string' ? parseFloat(val) : val;
+            });
+
+            const baseOption = {
+                tooltip: { trigger: chartType === 'pie' ? 'item' : 'axis' },
+                legend: { show: ['pie', 'area'].includes(chartType), bottom: 10 },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
+            };
+
+            let chartOption = {};
+
+            switch (chartType) {
+                case 'bar':
+                case 'column':
+                    chartOption = {
+                        xAxis: { type: 'category', data: xAxisData },
+                        yAxis: { type: 'value' },
+                        series: [{ type: 'bar', data: seriesData, itemStyle: { color: style.fillColor || '#667eea' } }]
+                    };
+                    break;
+                case 'line':
+                    chartOption = {
+                        xAxis: { type: 'category', data: xAxisData, boundaryGap: false },
+                        yAxis: { type: 'value' },
+                        series: [{ type: 'line', data: seriesData, smooth: true }]
+                    };
+                    break;
+                case 'area':
+                    chartOption = {
+                        xAxis: { type: 'category', data: xAxisData, boundaryGap: false },
+                        yAxis: { type: 'value' },
+                        series: [{
+                            type: 'line',
+                            data: seriesData,
+                            smooth: true,
+                            areaStyle: { color: style.fillColor || 'rgba(102, 126, 234, 0.5)' }
+                        }]
+                    };
+                    break;
+                case 'pie':
+                    chartOption = {
+                        series: [{
+                            type: 'pie',
+                            radius: ['40%', '70%'],
+                            data: data.map(item => ({ name: item[colorField], value: item[angleField] }))
+                        }]
+                    };
+                    break;
+                case 'scatter':
+                    chartOption = {
+                        xAxis: { type: 'value', name: xField },
+                        yAxis: { type: 'value', name: yField },
+                        series: [{ type: 'scatter', data: data.map(item => [item[xField], item[yField]]), symbolSize: 10 }]
+                    };
+                    break;
+                default:
+                    chartOption = {
+                        xAxis: { type: 'category', data: xAxisData },
+                        yAxis: { type: 'value' },
+                        series: [{ type: 'bar', data: seriesData }]
+                    };
+            }
+
+            return { ...baseOption, ...chartOption };
+        }
+
+        // Reset chat
+        async function resetChat() {
             if (eventSource) {
                 eventSource.close();
                 eventSource = null;
+            }
+
+            if (currentChartInstance) {
+                currentChartInstance.dispose();
+                currentChartInstance = null;
             }
 
             try {
@@ -594,32 +1103,47 @@
                 console.error('Error resetting:', error);
             }
 
-            // Reset UI
-            document.getElementById('statusBadge').className = 'status-badge status-idle';
-            document.getElementById('statusBadge').textContent = 'Ready';
-            document.getElementById('executeBtn').disabled = false;
-            document.getElementById('infoGrid').style.display = 'none';
-
-            // Reset workflow diagram
-            document.querySelectorAll('[data-node]').forEach(node => {
-                node.className = 'node node-pending';
-            });
-
-            // Reset node details
-            document.getElementById('nodeDetails').innerHTML = `
-                <div class="empty-state">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p>Execute a query to see agent details</p>
+            // Clear messages and show welcome
+            document.getElementById('messagesContainer').innerHTML = `
+                <div class="welcome-container" id="welcomeContainer">
+                    <div class="welcome-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 013 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15zM5 8.95v6.7l6 3.38v-6.7l-6-3.38zm14 6.7v-6.7l-6 3.38v6.7l6-3.38z"/>
+                        </svg>
+                    </div>
+                    <div class="welcome-title">Welcome to ChatBI</div>
+                    <div class="welcome-subtitle">Your intelligent data analysis assistant</div>
+                    <div class="suggestion-cards">
+                        <div class="suggestion-card" onclick="sendSuggestion('Show me the top 5 products by sales')">
+                            <div class="suggestion-card-title">Top Products</div>
+                            <div class="suggestion-card-desc">Analyze best-selling products</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Display sales trend over the last 6 months')">
+                            <div class="suggestion-card-title">Sales Trend</div>
+                            <div class="suggestion-card-desc">View sales over time</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Show category distribution by revenue')">
+                            <div class="suggestion-card-title">Categories</div>
+                            <div class="suggestion-card-desc">Revenue by category</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Compare performance across regions')">
+                            <div class="suggestion-card-title">Regional Analysis</div>
+                            <div class="suggestion-card-desc">Compare regions</div>
+                        </div>
+                    </div>
                 </div>
             `;
+
+            currentMessageId = null;
+            currentWorkflowElement = null;
         }
 
-        // Auto-start streaming on page load
-        window.addEventListener('load', function() {
-            // Don't auto-start, wait for user to execute
-        });
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>

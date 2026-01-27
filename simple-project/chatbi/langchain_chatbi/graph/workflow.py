@@ -17,6 +17,7 @@ from langchain_chatbi.graph.nodes import (
     chart_node,
     diagnosis_node,
     answer_node,
+    db_type,
 )
 from langchain_chatbi.graph.edges import route_after_intent, route_after_execution
 
@@ -32,9 +33,8 @@ def create_chatbi_graph():
     4. SQL generation → creates SQL query
     5. SQL execution → runs query against database
        - On error: retry with correction (max 3 attempts)
-    6. Chart generation → creates visualization config
-    7. Diagnosis → extracts insights
-    8. Answer summarization → generates natural language response
+    6. [Parallel] Chart generation + Diagnosis → can run simultaneously
+    7. Answer summarization → generates natural language response
 
     Returns:
         Compiled StateGraph ready for execution
@@ -50,6 +50,7 @@ def create_chatbi_graph():
     workflow.add_node("schema", schema_node)
     workflow.add_node("reasoning", reasoning_node)
     workflow.add_node("sql", sql_node)
+    workflow.add_node("dbtype", db_type)
     workflow.add_node("execution", execution_node)
     workflow.add_node("chart", chart_node)
     workflow.add_node("diagnosis", diagnosis_node)
@@ -81,8 +82,11 @@ def create_chatbi_graph():
     # Reasoning → SQL
     workflow.add_edge("reasoning", "sql")
 
-    # SQL → Execution
-    workflow.add_edge("sql", "execution")
+    # SQL → dbtype
+    workflow.add_edge("sql", "dbtype")
+
+    # dbtype → Execution
+    workflow.add_edge("dbtype", "execution")
 
     # Execution → conditional routing (retry or proceed)
     workflow.add_conditional_edges(
@@ -90,15 +94,28 @@ def create_chatbi_graph():
         route_after_execution,
         {
             "sql": "sql",  # Retry SQL with error correction
-            "chart": "chart",  # Proceed to chart generation
+            "parallel_analysis": "parallel_analysis",  # Proceed to parallel analysis
             "__end__": END,  # Max retries exceeded
         }
     )
 
-    # Chart → Diagnosis
-    workflow.add_edge("chart", "diagnosis")
+    # ============================================================================
+    # Parallel Analysis: chart + diagnosis run simultaneously
+    # ============================================================================
 
-    # Diagnosis → Answer
+    # Create a junction node for parallel execution
+    def join_parallel_analysis(state: ChatBIState) -> ChatBIState:
+        """Join point after parallel chart and diagnosis execution."""
+        return state
+
+    workflow.add_node("parallel_analysis", join_parallel_analysis)
+
+    # Execution → [chart, diagnosis] (parallel branches)
+    workflow.add_edge("parallel_analysis", "chart")
+    workflow.add_edge("parallel_analysis", "diagnosis")
+
+    # Both chart and diagnosis → answer
+    workflow.add_edge("chart", "answer")
     workflow.add_edge("diagnosis", "answer")
 
     # Answer → End
@@ -121,8 +138,8 @@ def print_workflow_graph():
     """
     Print a text representation of the workflow graph.
     """
-    print("ChatBI LangGraph Workflow:")
-    print("=" * 50)
+    print("ChatBI LangGraph Workflow (Optimized with Parallel Execution):")
+    print("=" * 60)
     print("""
     User Question
         │
@@ -141,6 +158,9 @@ def print_workflow_graph():
     [sql_node] ───────────────┐           │
         │                      │           │
         ▼                      │           │
+    [dbtype_node]              │           │
+        │                      │           │
+        ▼                      │           │
     [execution_node] ─────────┤ (error)    │
         │ (success)           │   │        │
         │                     ▼   ▼        │
@@ -149,17 +169,25 @@ def print_workflow_graph():
         └──────────────────────┘           │
         │                                  │
         ▼                                  │
-    [chart_node]                          │
+    [parallel_analysis]                    │
         │                                  │
-        ▼                                  │
-    [diagnosis_node]                      │
-        │                                  │
-        ▼                                  │
-    [answer_node]                          │
-        │                                  │
-        ▼                                  ▼
-      END                               END
+        ├──────┬──────┐                    │
+        ▼      ▼      ▼                    │
+    [chart_node] + [diagnosis_node]        │
+    (parallel execution)                    │
+        │      │                           │
+        └──────┴──────┐                    │
+                     ▼                     │
+              [answer_node]                │
+                     │                     │
+                     ▼                     ▼
+                   END                   END
     (other intents: greeting, help, unknown)
+
+    Performance Optimizations:
+    - LLM instances are cached and reused
+    - Chart and Diagnosis nodes run in PARALLEL
+    - 30s timeout with fast failure
     """)
 
 
