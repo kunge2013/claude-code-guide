@@ -30,14 +30,14 @@ class ChatBIState(MessagesState):
     """Output language (e.g., 'zh-CN', 'en-US')"""
 
     # ============================================================================
-    # Configuration (passed through state instead of config parameter)
+    # Configuration
     # ============================================================================
 
     table_schemas: Optional[List[Dict[str, Any]]]
     """Available table schemas for schema selection"""
 
-    db: Optional[Any]
-    """Database connection for SQL execution"""
+    # Note: db connection is passed via config["configurable"]["db"] instead of state
+    # to avoid msgpack serialization issues
 
     # ============================================================================
     # Agent Outputs

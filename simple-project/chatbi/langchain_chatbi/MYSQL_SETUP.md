@@ -31,6 +31,8 @@ MYSQL_DATABASE=chatbi
 
 ### 1. 在工作流中使用
 
+**重要**: 数据库连接需要通过 `config` 参数传递，而不是通过 `state`，以避免 msgpack 序列化问题。
+
 ```python
 import asyncio
 from langchain_chatbi.db.mysql_db import create_mysql_connection
@@ -45,13 +47,15 @@ async def main():
     # 准备状态
     state: ChatBIState = {
         "question": "显示销售额前10的产品",
-        "db": mysql_conn,  # 传入数据库连接
         "generated_sql": "SELECT * FROM products ORDER BY sales DESC LIMIT 10",
         # ... 其他状态字段
     }
 
+    # 通过 config 传递数据库连接（不是 state）
+    config = {"configurable": {"db": mysql_conn}}
+
     # 执行查询
-    result = await execution_node(state)
+    result = await execution_node(state, config)
     print(result["query_result"])
 
     # 关闭连接
@@ -194,7 +198,8 @@ except Exception as e:
 
 ```python
 # 查看详细错误
-result = await execution_node(state)
+config = {"configurable": {"db": mysql_conn}}
+result = await execution_node(state, config)
 if result.get("sql_error"):
     print(f"SQL Error: {result['sql_error']}")
     # 检查:

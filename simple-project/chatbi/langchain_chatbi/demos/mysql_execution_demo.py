@@ -6,6 +6,7 @@ Demonstrates how to use MySQL connection with the ChatBI workflow.
 
 import asyncio
 from dotenv import load_dotenv
+from langchain_core.runnables import RunnableConfig
 
 from langchain_chatbi.db.mysql_db import create_mysql_connection
 from langchain_chatbi.graph.state import ChatBIState
@@ -77,7 +78,6 @@ async def demo_mysql_query_execution():
         "session_id": "demo_session",
         "language": "zh-CN",
         "table_schemas": None,
-        "db": mysql_conn,
         "intent": None,
         "ambiguity_info": None,
         "selected_schemas": None,
@@ -96,8 +96,11 @@ async def demo_mysql_query_execution():
         "messages": []
     }
 
+    # Pass db via config (not state) to avoid serialization issues
+    config = {"configurable": {"db": mysql_conn}}
+
     try:
-        result = await execution_node(state)
+        result = await execution_node(state, config)
 
         print(f"   Query executed successfully!")
         print(f"   Rows returned: {len(result['query_result'])}")
@@ -159,7 +162,6 @@ async def demo_workflow_with_mysql():
         "session_id": "workflow_demo",
         "language": "zh-CN",
         "table_schemas": schemas,
-        "db": mysql_conn,
         "intent": "query",
         "ambiguity_info": None,
         "selected_schemas": schemas[:1] if schemas else None,
@@ -181,10 +183,12 @@ async def demo_workflow_with_mysql():
     print(f"   Question: {state['question']}")
     print(f"   SQL: {state['generated_sql']}")
 
-    # Execute the query
+    # Execute the query (pass db via config)
     print("\n4. Executing query...")
+    config = {"configurable": {"db": mysql_conn}}
+
     try:
-        result = await execution_node(state)
+        result = await execution_node(state, config)
 
         if result.get("sql_error"):
             print(f"   ✗ Query failed: {result['sql_error']}")

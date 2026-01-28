@@ -109,13 +109,6 @@ def execute_query():
                 llm = create_langchain_llm()
                 graph = create_chatbi_graph()
 
-                config = {
-                    "configurable": {
-                        "thread_id": f"thread-{datetime.now().timestamp()}"
-                    },
-                    "callbacks": [],  # No callbacks for web demo
-                }
-
                 # Create MySQL connection
                 mysql_conn = None
                 table_schemas = SAMPLE_TABLE_SCHEMAS
@@ -135,6 +128,14 @@ def execute_query():
                     logger.error(f"MySQL initialization error: {e}, falling back to demo mode")
                     mysql_conn = None
 
+                config = {
+                    "configurable": {
+                        "thread_id": f"thread-{datetime.now().timestamp()}",
+                        "db": mysql_conn  # Pass db via config (not state) to avoid serialization
+                    },
+                    "callbacks": [],  # No callbacks for web demo
+                }
+
                 initial_state = {
                     "question": question,
                     "session_id": f"web-session-{datetime.now().timestamp()}",
@@ -142,8 +143,7 @@ def execute_query():
                     "messages": [],
                     "sql_retry_count": 0,
                     "should_stop": False,
-                    "table_schemas": table_schemas,
-                    "db": mysql_conn  # Use real MySQL connection or None (fallback to demo)
+                    "table_schemas": table_schemas
                 }
 
                 # Run async workflow

@@ -8,6 +8,7 @@ Each node takes the current state, runs its agent, and returns updated state.
 import asyncio
 from typing import Dict, Any, List
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 import pymysql
 
 from langchain_chatbi.graph.state import ChatBIState
@@ -157,7 +158,7 @@ async def db_type(state: ChatBIState) -> Dict[str, Any]:
             "dbtype": db_type.dbtype
         }
 
-async def execution_node(state: ChatBIState) -> Dict[str, Any]:
+async def execution_node(state: ChatBIState, config: RunnableConfig) -> Dict[str, Any]:
     """
     SQL execution node.
 
@@ -166,8 +167,11 @@ async def execution_node(state: ChatBIState) -> Dict[str, Any]:
     """
     import concurrent.futures
 
-    # Get database from state or use demo mode
-    db = state.get("db")
+    # Get database from config (not state to avoid serialization issues)
+    # config["configurable"] contains non-serializable objects like db connections
+    db = None
+    if config and "configurable" in config:
+        db = config["configurable"].get("db")
 
     if not db:
         # Demo mode: Return mock results
