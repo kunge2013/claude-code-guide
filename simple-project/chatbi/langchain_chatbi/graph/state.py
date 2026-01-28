@@ -30,6 +30,19 @@ class ChatBIState(MessagesState):
     """Output language (e.g., 'zh-CN', 'en-US')"""
 
     # ============================================================================
+    # Dictionary Transformation
+    # ============================================================================
+
+    original_question: Optional[str]
+    """The original user question before dictionary transformation"""
+
+    transformed_question: Optional[str]
+    """The question after dictionary value transformation"""
+
+    dictionary_transformations: Optional[Dict[str, Any]]
+    """Record of what transformations were applied"""
+
+    # ============================================================================
     # Configuration
     # ============================================================================
 

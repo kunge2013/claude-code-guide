@@ -1,0 +1,29 @@
+# Synonym Configuration for ChatBI
+#
+# This file defines synonym groups that map alternative names
+# to canonical dictionary values.
+
+synonym_groups:
+  # Product synonyms
+  - dictionary_name: product_dict
+    canonical_value: "云总机"
+    synonyms:
+      - "云总机服务"
+      - "云总机产品"
+      - "企业云总机"
+      - "云总机系统"
+
+  - dictionary_name: product_dict
+    canonical_value: "工作号"
+    synonyms:
+      - "工作号服务"
+      - "企业工作号"
+      - "工作号码"
+
+  # Region synonyms (example)
+  # - dictionary_name: region_dict
+  #   canonical_value: "北京"
+  #   synonyms:
+  #     - "北京市"
+  #     - "Beijing"
+  #     - "BJ"

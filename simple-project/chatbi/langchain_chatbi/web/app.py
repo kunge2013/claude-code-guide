@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_chatbi import create_chatbi_graph
 from langchain_chatbi.llm import create_langchain_llm
+from langchain_chatbi.dictionary import get_dictionary_service
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -128,10 +129,24 @@ def execute_query():
                     logger.error(f"MySQL initialization error: {e}, falling back to demo mode")
                     mysql_conn = None
 
+                # Initialize dictionary service
+                dictionary_service = None
+                try:
+                    dictionary_service = get_dictionary_service(
+                        config_path="config/dictionary_config.yaml",
+                        synonym_path="config/synonym_config.yaml",
+                        db_connection=mysql_conn
+                    )
+                    await dictionary_service.initialize()
+                    logger.info("Dictionary service initialized successfully")
+                except Exception as e:
+                    logger.warning(f"Dictionary service initialization failed: {e}, continuing without dictionary transformation")
+
                 config = {
                     "configurable": {
                         "thread_id": f"thread-{datetime.now().timestamp()}",
-                        "db": mysql_conn  # Pass db via config (not state) to avoid serialization
+                        "db": mysql_conn,  # Pass db via config (not state) to avoid serialization
+                        "dictionary_service": dictionary_service  # Pass dictionary service
                     },
                     "callbacks": [],  # No callbacks for web demo
                 }
@@ -168,6 +183,16 @@ def execute_query():
                                 continue
 
                             # Extract key information
+                            # Dictionary transformation info
+                            if "original_question" in node_output and node_output["original_question"]:
+                                node_result["original_question"] = node_output["original_question"]
+
+                            if "transformed_question" in node_output and node_output["transformed_question"]:
+                                node_result["transformed_question"] = node_output["transformed_question"]
+
+                            if "dictionary_transformations" in node_output and node_output["dictionary_transformations"]:
+                                node_result["dictionary_transformations"] = node_output["dictionary_transformations"]
+
                             if "intent" in node_output and node_output["intent"]:
                                 node_result["intent"] = node_output["intent"]
 

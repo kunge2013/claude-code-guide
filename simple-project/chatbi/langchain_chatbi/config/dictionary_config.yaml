@@ -1,0 +1,42 @@
+# Dictionary Configuration for ChatBI
+#
+# This file defines dictionary mappings for converting user-friendly names
+# to database IDs.
+
+dictionaries:
+  # Product dictionary - maps product names to product IDs
+  - name: product_dict
+    description: "Product name to ID mapping"
+    source_type: database
+    cache_ttl_seconds: 3600  # Cache for 1 hour
+    source_config:
+      type: database
+      table: prod_info
+      key_column: prod_id
+      value_column: prod_name
+      # where_clause: "status = 'active'"  # Optional filter
+
+  # Status dictionary - static mappings for status codes
+  - name: status_dict
+    description: "Status name to code mapping"
+    source_type: static
+    cache_ttl_seconds: 7200  # Cache for 2 hours (static data)
+    source_config:
+      type: static
+      mappings:
+        "启用": "1000"
+        "禁用": "1001"
+        "待审核": "1002"
+        "Active": "1000"
+        "Inactive": "1001"
+
+  # Region dictionary - maps region names to region codes
+  # - name: region_dict
+  #   description: "Region name to code mapping"
+  #   source_type: database
+  #   cache_ttl_seconds: 3600
+  #   source_config:
+  #     type: database
+  #     table: region_info
+  #     key_column: region_code
+  #     value_column: region_name

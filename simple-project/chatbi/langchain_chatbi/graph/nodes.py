@@ -21,6 +21,68 @@ from langchain_chatbi.agents.chart_agent import ChartGenerationAgent
 from langchain_chatbi.agents.diagnosis_agent import DiagnosisAgent
 from langchain_chatbi.agents.answer_agent import AnswerSummarizationAgent
 from langchain_chatbi.agents.db_agent import DbAgent
+from langchain_chatbi.dictionary.dictionary_service import get_dictionary_service
+
+
+async def preprocessing_node(state: ChatBIState, config: RunnableConfig) -> Dict[str, Any]:
+    """
+    Preprocessing node for dictionary value transformation.
+
+    This is the FIRST node in the workflow, before intent classification.
+    It transforms user-friendly names to their database IDs.
+    """
+    # Get dictionary service from config
+    dictionary_service = None
+    if config and "configurable" in config:
+        dictionary_service = config["configurable"].get("dictionary_service")
+
+    original_question = state["question"]
+
+    if not dictionary_service:
+        # No transformation available
+        logger.debug("Dictionary service not configured, skipping transformation")
+        return {
+            "original_question": original_question,
+            "transformed_question": original_question,
+            "dictionary_transformations": {},
+            "messages": [AIMessage(content="Preprocessing: No dictionary transformation")]
+        }
+
+    # Apply dictionary transformation
+    try:
+        from loguru import logger
+        transformed, metadata = await dictionary_service.transform(
+            text=original_question,
+            dictionary_names=None  # Apply all dictionaries
+        )
+
+        logger.info(f"Preprocessing: '{original_question}' -> '{transformed}'")
+
+        return {
+            "original_question": original_question,
+            "transformed_question": transformed,
+            "dictionary_transformations": metadata,
+            "messages": [AIMessage(
+                content=f"Preprocessing: Applied dictionary transformations: {list(metadata.keys())}"
+            )]
+        }
+
+    except Exception as e:
+        from loguru import logger
+        logger.error(f"Dictionary transformation failed: {e}")
+        # Fall back to original question
+        return {
+            "original_question": original_question,
+            "transformed_question": original_question,
+            "dictionary_transformations": {},
+            "messages": [AIMessage(content=f"Preprocessing: Transformation failed - {e}")]
+        }
+
+
+def _get_effective_question(state: ChatBIState) -> str:
+    """Helper to get the effective question (transformed or original)."""
+    return state.get("transformed_question") or state["question"]
+
 
 async def intent_node(state: ChatBIState) -> Dict[str, Any]:
     """
@@ -31,9 +93,12 @@ async def intent_node(state: ChatBIState) -> Dict[str, Any]:
     llm = create_langchain_llm()
     agent = IntentClassificationAgent(llm=llm)
 
+    # Use transformed question if available, otherwise original
+    question_to_classify = _get_effective_question(state)
+
     # Use synchronous agent method
     intent_result, ambiguity_result = agent.classify_full_sync(
-        question=state["question"],
+        question=question_to_classify,
         context=None
     )
 
@@ -66,7 +131,7 @@ async def schema_node(state: ChatBIState) -> Dict[str, Any]:
     table_schemas = state.get("table_schemas", [])
 
     selected = await agent.select_schemas(
-        question=state["question"],
+        question=_get_effective_question(state),
         table_schemas=table_schemas
     )
 
@@ -86,7 +151,7 @@ async def reasoning_node(state: ChatBIState) -> Dict[str, Any]:
     agent = QueryReasoningAgent(llm=llm)
 
     reasoning = await agent.generate_reasoning(
-        question=state["question"],
+        question=_get_effective_question(state),
         mdl_context=state.get("mdl_context", ""),
         history_queries=state.get("history_queries", "")
     )
@@ -110,7 +175,7 @@ async def sql_node(state: ChatBIState) -> Dict[str, Any]:
     if state.get("sql_error") and state.get("generated_sql"):
         # Correct the failed SQL
         corrected_sql = await agent.correct_sql(
-            question=state["question"],
+            question=_get_effective_question(state),
             sql=state["generated_sql"],
             error=state["sql_error"],
             table_schemas=state["selected_schemas"] or []
@@ -124,7 +189,7 @@ async def sql_node(state: ChatBIState) -> Dict[str, Any]:
     else:
         # Generate initial SQL
         sql = await agent.generate_sql(
-            question=state["question"],
+            question=_get_effective_question(state),
             table_schemas=state["selected_schemas"] or []
         )
 
@@ -137,9 +202,9 @@ async def sql_node(state: ChatBIState) -> Dict[str, Any]:
 
 async def db_type(state: ChatBIState) -> Dict[str, Any]:
     """
-    SQL generation node.
+    Database type selection node.
 
-    Generates SQL from natural language with error correction.
+    Determines the database type to use for query execution.
     """
     llm = create_langchain_llm()
     agent = DbAgent(llm=llm)
@@ -152,11 +217,12 @@ async def db_type(state: ChatBIState) -> Dict[str, Any]:
     else:
         # Generate initial SQL
         db_type = await agent.select_db(
-            question=state["question"]
+            question=_get_effective_question(state)
         )
         return {
             "dbtype": db_type.dbtype
         }
+
 
 async def execution_node(state: ChatBIState, config: RunnableConfig) -> Dict[str, Any]:
     """
@@ -259,7 +325,7 @@ async def chart_node(state: ChatBIState) -> Dict[str, Any]:
             }
 
     chart_config = await agent.generate_chart(
-        question=state["question"],
+        question=_get_effective_question(state),
         query_metadata=query_metadata,
         result_data=result_data
     )
@@ -280,7 +346,7 @@ async def diagnosis_node(state: ChatBIState) -> Dict[str, Any]:
     agent = DiagnosisAgent(llm=llm)
 
     diagnosis = await agent.generate_diagnosis(
-        question=state["question"],
+        question=_get_effective_question(state),
         sql=state.get("generated_sql", ""),
         data_sample=state["query_result"][:20] if state["query_result"] else []
     )
@@ -301,7 +367,7 @@ async def answer_node(state: ChatBIState) -> Dict[str, Any]:
     agent = AnswerSummarizationAgent(llm=llm)
 
     answer = await agent.generate_answer(
-        question=state["question"],
+        question=_get_effective_question(state),
         query_metadata={},
         result_data=state["query_result"] or [],
         chart_config=state.get("chart_config", {}),

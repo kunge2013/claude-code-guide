@@ -9,6 +9,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from langchain_chatbi.graph.state import ChatBIState
 from langchain_chatbi.graph.nodes import (
+    preprocessing_node,
     intent_node,
     schema_node,
     reasoning_node,
@@ -46,6 +47,7 @@ def create_chatbi_graph():
     # Add Nodes
     # ============================================================================
 
+    workflow.add_node("preprocessing", preprocessing_node)
     workflow.add_node("intent", intent_node)
     workflow.add_node("schema", schema_node)
     workflow.add_node("reasoning", reasoning_node)
@@ -60,11 +62,14 @@ def create_chatbi_graph():
     # Define Entry Point
     # ============================================================================
 
-    workflow.set_entry_point("intent")
+    workflow.set_entry_point("preprocessing")
 
     # ============================================================================
     # Define Edges
     # ============================================================================
+
+    # Preprocessing → Intent (always proceed)
+    workflow.add_edge("preprocessing", "intent")
 
     # Intent → conditional routing
     workflow.add_conditional_edges(
@@ -142,6 +147,9 @@ def print_workflow_graph():
     print("=" * 60)
     print("""
     User Question
+        │
+        ▼
+    [preprocessing_node] ← Dictionary value transformation
         │
         ▼
     [intent_node]
