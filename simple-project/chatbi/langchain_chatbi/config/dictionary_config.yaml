@@ -2,25 +2,39 @@
 #
 # This file defines dictionary mappings for converting user-friendly names
 # to database IDs.
+#
+# 使用说明:
+# 1. source_type: "database" 表示从数据库动态查询
+# 2. source_type: "static" 表示使用静态配置
+# 3. cache_ttl_seconds: 缓存过期时间（秒）
 
 dictionaries:
-  # Product dictionary - maps product names to product IDs
+  # 产品字典 - 默认使用静态配置作为示例
+  # 实际使用时可改为 database 类型
   - name: product_dict
-    description: "Product name to ID mapping"
-    source_type: database
-    cache_ttl_seconds: 3600  # Cache for 1 hour
+    description: "产品名称到ID的映射"
+    source_type: static  # 改为 database 可从 prod_info 表动态加载
+    cache_ttl_seconds: 3600  # 缓存1小时
     source_config:
-      type: database
-      table: prod_info
-      key_column: prod_id
-      value_column: prod_name
-      # where_clause: "status = 'active'"  # Optional filter
+      type: static
+      mappings:
+        "云总机": "1001"
+        "工作号": "1002"
+        "云电脑": "1003"
+        "云存储": "1004"
+    # 如果使用数据库类型，配置如下:
+    # source_config:
+    #   type: database
+    #   table: prod_info
+    #   key_column: prod_id
+    #   value_column: prod_name
+    #   where_clause: "status = 'active'"  # 可选过滤条件
 
-  # Status dictionary - static mappings for status codes
+  # 状态字典 - 静态映射
   - name: status_dict
-    description: "Status name to code mapping"
+    description: "状态名称到编码的映射"
     source_type: static
-    cache_ttl_seconds: 7200  # Cache for 2 hours (static data)
+    cache_ttl_seconds: 7200  # 缓存2小时（静态数据）
     source_config:
       type: static
       mappings:
@@ -30,9 +44,9 @@ dictionaries:
         "Active": "1000"
         "Inactive": "1001"
 
-  # Region dictionary - maps region names to region codes
+  # 地区字典 - 示例配置
   # - name: region_dict
-  #   description: "Region name to code mapping"
+  #   description: "地区名称到编码的映射"
   #   source_type: database
   #   cache_ttl_seconds: 3600
   #   source_config:

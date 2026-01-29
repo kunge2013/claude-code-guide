@@ -5,8 +5,10 @@ Provides dictionary value transformation with caching and synonym support.
 """
 
 import asyncio
+import os
 import re
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from loguru import logger
 import yaml
@@ -204,15 +206,48 @@ class DictionaryService:
     # ========================================================================
 
     def _load_yaml(self, path: str) -> Dict[str, Any]:
-        """Load YAML configuration file."""
+        """
+        Load YAML configuration file.
+
+        Supports both relative and absolute paths.
+        For relative paths, tries multiple resolution strategies.
+        """
+        # Convert to Path object
+        config_path = Path(path)
+
+        # Initialize full_path with the original path
+        full_path = config_path
+
+        # If not absolute, try multiple resolution strategies
+        if not config_path.is_absolute():
+            # Strategy 1: Relative to current working directory
+            if config_path.exists():
+                full_path = config_path
+            else:
+                # Strategy 2: Relative to this module's directory
+                module_dir = Path(__file__).parent.parent
+                full_path = module_dir / path
+
+                # Strategy 3: If still not found, try relative to package root
+                if not full_path.exists():
+                    package_root = Path(__file__).parent.parent.parent
+                    full_path = package_root / "langchain_chatbi" / path
+
+        logger.info(f"Loading config from: {full_path}")
+
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f) or {}
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = yaml.safe_load(f)
+                if content is None:
+                    logger.warning(f"Config file is empty: {full_path}")
+                    return {}
+                logger.info(f"Successfully loaded config with {len(content)} top-level keys from {full_path}")
+                return content
         except FileNotFoundError:
-            logger.warning(f"Configuration file not found: {path}")
+            logger.error(f"Configuration file not found: {full_path} (tried from: {os.getcwd()})")
             return {}
         except Exception as e:
-            logger.error(f"Error loading configuration from {path}: {e}")
+            logger.error(f"Error loading configuration from {full_path}: {e}")
             return {}
 
     async def _warmup_cache(self):
