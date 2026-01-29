@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}图谱可视化 - MySQL 表关系知识图谱{% endblock %}
+
+{% block extra_head %}
+<!-- Cytoscape.js for graph visualization -->
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="graph-page">
+    <div class="container">
+        <div class="graph-header">
+            <h2>数据库表关系图谱</h2>
+            <div class="graph-controls">
+                <button id="refreshBtn" class="btn btn-primary">刷新图谱</button>
+                <button id="fitBtn" class="btn btn-secondary">适应视图</button>
+                <button id="layoutBtn" class="btn btn-secondary">重新布局</button>
+            </div>
+        </div>
+
+        <div class="graph-stats" id="graphStats">
+            <div class="stat-item">
+                <span class="stat-label">节点:</span>
+                <span class="stat-value" id="nodeCount">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">边:</span>
+                <span class="stat-value" id="edgeCount">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">状态:</span>
+                <span class="stat-value" id="graphStatus">加载中...</span>
+            </div>
+        </div>
+
+        <!-- Search Chat Box -->
+        <div class="search-chat-container">
+            <div class="search-chat-box" id="searchChatBox">
+                <div class="chat-header">
+                    <h3>表信息检索</h3>
+                    <button class="chat-close-btn" id="chatCloseBtn">×</button>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message system-message">
+                        <div class="message-content">
+                            <p>我可以帮你搜索表信息。试着搜索：</p>
+                            <ul class="search-suggestions">
+                                <li>"产品" - 查找产品相关的表</li>
+                                <li>"订单" - 查找订单相关的表</li>
+                                <li>"用户" - 查找用户相关的表</li>
+                                <li>"price" - 查找包含价格字段的表</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <form class="chat-form" id="chatForm">
+                        <input type="text" class="chat-input" id="chatInput"
+                               placeholder="输入表名、字段名或关键词..." autocomplete="off">
+                        <button type="submit" class="chat-send-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <button class="chat-toggle-btn" id="chatToggleBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>搜索</span>
+            </button>
+        </div>
+
+        <div class="graph-container" id="cy"></div>
+
+        <div class="graph-info-panel" id="infoPanel" style="display: none;">
+            <h3>节点信息</h3>
+            <div id="nodeInfo"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/graph_viz.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chat_search.js') }}"></script>
+<script>
+// Initialize graph on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initGraph();
+    initChatSearch();
+});
+
+document.getElementById('refreshBtn').addEventListener('click', function() {
+    loadGraphData();
+});
+
+document.getElementById('fitBtn').addEventListener('click', function() {
+    if (window.cy) {
+        window.cy.fit(null, 50);
+    }
+});
+
+document.getElementById('layoutBtn').addEventListener('click', function() {
+    if (window.cy) {
+        const layout = window.cy.layout({
+            name: 'cose',
+            animate: true,
+            animationDuration: 500
+        });
+        layout.run();
+    }
+});
+</script>
+{% endblock %}

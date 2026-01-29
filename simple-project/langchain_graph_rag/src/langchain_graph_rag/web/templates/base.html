@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MySQL 表关系知识图谱{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/graph_viz.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="app-header">
+        <div class="container">
+            <h1>MySQL 表关系知识图谱</h1>
+            <nav class="app-nav">
+                <a href="{{ url_for('index') }}">图谱可视化</a>
+                <a href="{{ url_for('query_page') }}">关系查询</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="app-main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            <p>Powered by LangChain, Neo4j, and Flask</p>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

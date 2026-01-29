@@ -1,0 +1,251 @@
+# Data Sources Configuration
+# Configure MySQL databases and static schema definitions
+
+# MySQL data sources
+mysql_sources:
+  - name: "primary_db"
+    host: ${MYSQL_HOST}
+    port: ${MYSQL_PORT}
+    user: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    database: ${MYSQL_DATABASE}
+    charset: "utf8mb4"
+
+    # Extraction options
+    extract_options:
+      include_views: false  # Whether to include views
+      schema_filter: []  # Empty means extract all schemas
+      table_filter: []  # Empty means extract all tables
+      # Example table filter: ["orders", "customers", "products"]
+
+    # Relation inference options
+    inference_options:
+      infer_from_naming: true  # Infer relations from column naming
+      infer_from_types: true  # Infer relations from column types
+      min_confidence: 0.7  # Minimum confidence for inferred relations
+
+# Static schema configuration
+# Used when database is not directly accessible or for manual overrides
+static_schema:
+  # Table definitions
+  tables:
+    # Example: Orders table
+    - name: "orders"
+      database: "sales_db"
+      columns:
+        - name: "id"
+          type: "int"
+          primary_key: true
+          nullable: false
+          comment: "Order ID"
+        - name: "customer_id"
+          type: "int"
+          nullable: false
+          foreign_key:
+            ref_table: "customers"
+            ref_column: "id"
+          comment: "Customer ID"
+        - name: "order_date"
+          type: "datetime"
+          nullable: false
+          comment: "Order date"
+        - name: "total_amount"
+          type: "decimal"
+          nullable: false
+          comment: "Total order amount"
+        - name: "status"
+          type: "varchar"
+          max_length: 50
+          nullable: false
+          comment: "Order status"
+      primary_keys: ["id"]
+      comment: "Customer orders"
+
+    # Example: Customers table
+    - name: "customers"
+      database: "sales_db"
+      columns:
+        - name: "id"
+          type: "int"
+          primary_key: true
+          nullable: false
+          comment: "Customer ID"
+        - name: "name"
+          type: "varchar"
+          max_length: 255
+          nullable: false
+          comment: "Customer name"
+        - name: "email"
+          type: "varchar"
+          max_length: 255
+          nullable: true
+          comment: "Customer email"
+        - name: "created_at"
+          type: "datetime"
+          nullable: false
+          comment: "Account creation date"
+      primary_keys: ["id"]
+      comment: "Customer information"
+
+    # Example: Products table
+    - name: "products"
+      database: "sales_db"
+      columns:
+        - name: "id"
+          type: "int"
+          primary_key: true
+          nullable: false
+          comment: "Product ID"
+          aliases:
+            - "产品ID"
+            - "商品ID"
+            - "prod_id"
+            - "productId"
+            - "产品编号"
+        - name: "name"
+          type: "varchar"
+          max_length: 255
+          nullable: false
+          comment: "Product name"
+          aliases:
+            - "产品名称"
+            - "商品名称"
+            - "产品名"
+            - "productName"
+        - name: "category_id"
+          type: "int"
+          nullable: true
+          foreign_key:
+            ref_table: "categories"
+            ref_column: "id"
+          comment: "Category ID"
+          aliases:
+            - "分类ID"
+            - "品类ID"
+            - "category_id"
+        - name: "price"
+          type: "decimal"
+          nullable: false
+          comment: "Product price"
+          aliases:
+            - "价格"
+            - "单价"
+            - "商品价格"
+            - "product_price"
+      primary_keys: ["id"]
+      comment: "Product catalog"
+
+    # Example: Order items table
+    - name: "order_items"
+      database: "sales_db"
+      columns:
+        - name: "id"
+          type: "int"
+          primary_key: true
+          nullable: false
+          comment: "Line item ID"
+        - name: "order_id"
+          type: "int"
+          nullable: false
+          foreign_key:
+            ref_table: "orders"
+            ref_column: "id"
+          comment: "Order ID"
+        - name: "product_id"
+          type: "int"
+          nullable: false
+          foreign_key:
+            ref_table: "products"
+            ref_column: "id"
+          comment: "Product ID"
+        - name: "quantity"
+          type: "int"
+          nullable: false
+          comment: "Quantity ordered"
+        - name: "unit_price"
+          type: "decimal"
+          nullable: false
+          comment: "Unit price"
+      primary_keys: ["id"]
+      comment: "Order line items"
+
+    # Example: Categories table
+    - name: "categories"
+      database: "sales_db"
+      columns:
+        - name: "id"
+          type: "int"
+          primary_key: true
+          nullable: false
+          comment: "Category ID"
+        - name: "name"
+          type: "varchar"
+          max_length: 255
+          nullable: false
+          comment: "Category name"
+        - name: "parent_id"
+          type: "int"
+          nullable: true
+          foreign_key:
+            ref_table: "categories"
+            ref_column: "id"
+          comment: "Parent category ID"
+      primary_keys: ["id"]
+      comment: "Product categories"
+
+  # Manual relationship definitions
+  # These can supplement or override automatically detected relationships
+  relations:
+    - from_table: "orders"
+      from_column: "customer_id"
+      to_table: "customers"
+      to_column: "id"
+      relation_type: "foreign_key"
+      cardinality: "N:1"
+      join_type: "INNER"
+      confidence: 1.0
+
+    - from_table: "order_items"
+      from_column: "order_id"
+      to_table: "orders"
+      to_column: "id"
+      relation_type: "foreign_key"
+      cardinality: "N:1"
+      join_type: "INNER"
+      confidence: 1.0
+
+    - from_table: "order_items"
+      from_column: "product_id"
+      to_table: "products"
+      to_column: "id"
+      relation_type: "foreign_key"
+      cardinality: "N:1"
+      join_type: "INNER"
+      confidence: 1.0
+
+    - from_table: "products"
+      from_column: "category_id"
+      to_table: "categories"
+      to_column: "id"
+      relation_type: "foreign_key"
+      cardinality: "N:1"
+      join_type: "LEFT"
+      confidence: 1.0
+
+    - from_table: "categories"
+      from_column: "parent_id"
+      to_table: "categories"
+      to_column: "id"
+      relation_type: "foreign_key"
+      cardinality: "N:1"
+      join_type: "LEFT"
+      confidence: 1.0
+
+# Schema merge strategy
+# Options: "mysql_only", "static_only", "merge", "static_override"
+merge_strategy: "merge"
+
+# "mysql_only": Use only MySQL metadata
+# "static_only": Use only static configuration
+# "merge": Merge both sources, MySQL takes precedence
+# "static_override": Merge both sources, static config takes precedence

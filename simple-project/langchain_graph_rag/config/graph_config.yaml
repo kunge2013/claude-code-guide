@@ -1,0 +1,115 @@
+# Graph Configuration
+# Knowledge graph settings for MySQL table relationships
+
+graph:
+  # Storage backend configuration
+  storage:
+    type: neo4j  # Options: neo4j, networkx
+    neo4j:
+      uri: bolt://localhost:7687
+      user: neo4j
+      password: ${NEO4J_PASSWORD}
+    # NetworkX fallback (for development/testing)
+    networkx:
+      enabled: false
+      cache_path: cache/graph_cache.pkl
+
+  # Graph building options
+  build:
+    auto_enrich: true  # Automatically infer semantic relationships
+    infer_relations: true  # Infer hidden relations based on column naming
+    batch_size: 100  # Number of nodes/edges to create per batch
+
+  # Graph visualization settings
+  visualization:
+    layout: force-directed  # Options: force-directed, hierarchical, circular
+    node_size_min: 20
+    node_size_max: 60
+    edge_width_min: 1
+    edge_width_max: 5
+
+  # Cache configuration
+  cache:
+    enabled: true
+    ttl_seconds: 3600  # Cache TTL in seconds
+    max_size: 1000  # Maximum number of cached queries
+
+# Entity mappings
+# Map table names to business entities
+entities:
+  table_mappings:
+    # Example mappings
+    orders: "订单"
+    customers: "客户"
+    products: "产品"
+    order_items: "订单明细"
+    categories: "产品类别"
+
+  # Semantic labels for business domains
+  semantic_labels:
+    - domain: "销售域"
+      keywords: ["order", "purchase", "transaction", "sale", "revenue"]
+    - domain: "客户域"
+      keywords: ["customer", "user", "account", "profile", "client"]
+    - domain: "产品域"
+      keywords: ["product", "item", "sku", "inventory", "category"]
+    - domain: "财务域"
+      keywords: ["payment", "invoice", "billing", "finance", "ledger"]
+
+  # Table type classification
+  table_types:
+    fact:
+      keywords: ["fact", "transaction", "log", "event"]
+      color: "#e74c3c"  # Red
+    dimension:
+      keywords: ["dim", "lookup", "ref", "attribute"]
+      color: "#2ecc71"  # Green
+    bridge:
+      keywords: ["bridge", "link", "mapping", "relation"]
+      color: "#f39c12"  # Orange
+
+# Relation type configuration
+relations:
+  # Foreign key relations
+  foreign_key:
+    color: "#e67e22"
+    width: 3
+    weight: 1.0
+
+  # Inferred join relations
+  join:
+    color: "#3498db"
+    width: 2
+    weight: 0.8
+
+  # Semantic relations
+  semantic:
+    color: "#1abc9c"
+    width: 1
+    weight: 0.5
+
+  # Reference relations
+  reference:
+    color: "#9b59b6"
+    width: 2
+    weight: 0.7
+
+# Column naming patterns for relation inference
+patterns:
+  # Pattern: {table}_id references {table}.id
+  foreign_key_pattern: "{table}_id"
+
+  # Common join column patterns
+  join_patterns:
+    - pattern: "{table}_id"
+      target: "{table}.id"
+    - pattern: "{table}_code"
+      target: "{table}.code"
+    - pattern: "{table}_key"
+      target: "{table}.key"
+
+  # Exclude these patterns from inference
+  exclude_patterns:
+    - "created_by"
+    - "updated_by"
+    - "deleted_by"

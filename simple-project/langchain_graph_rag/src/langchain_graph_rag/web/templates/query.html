@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}关系查询 - MySQL 表关系知识图谱{% endblock %}
+
+{% block content %}
+<div class="query-page">
+    <div class="container">
+        <h2>表关系查询</h2>
+
+        <!-- Path Query Section -->
+        <div class="query-section">
+            <h3>路径查询</h3>
+            <p class="query-description">查找两个表之间的关系路径</p>
+
+            <div class="query-form">
+                <div class="form-group">
+                    <label for="startTable">起始表:</label>
+                    <input type="text" id="startTable" class="form-control" placeholder="例如: orders">
+                </div>
+
+                <div class="form-group">
+                    <label for="endTable">目标表:</label>
+                    <input type="text" id="endTable" class="form-control" placeholder="例如: products">
+                </div>
+
+                <div class="form-group">
+                    <label for="maxHops">最大跳数:</label>
+                    <select id="maxHops" class="form-control">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="7">7</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="useLLM" checked>
+                        使用 AI 生成解释
+                    </label>
+                </div>
+
+                <button id="findPathBtn" class="btn btn-primary">查找路径</button>
+            </div>
+
+            <div id="pathResult" class="query-result" style="display: none;">
+                <h4>查询结果</h4>
+                <div id="pathInfo"></div>
+            </div>
+        </div>
+
+        <!-- Neighbor Query Section -->
+        <div class="query-section">
+            <h3>邻居查询</h3>
+            <p class="query-description">查找与指定表相关的所有表</p>
+
+            <div class="query-form">
+                <div class="form-group">
+                    <label for="neighborTable">表名:</label>
+                    <input type="text" id="neighborTable" class="form-control" placeholder="例如: customers">
+                </div>
+
+                <div class="form-group">
+                    <label for="neighborDepth">深度:</label>
+                    <select id="neighborDepth" class="form-control">
+                        <option value="1" selected>1 (直接邻居)</option>
+                        <option value="2">2 (二级邻居)</option>
+                        <option value="3">3 (三级邻居)</option>
+                    </select>
+                </div>
+
+                <button id="findNeighborsBtn" class="btn btn-primary">查找邻居</button>
+            </div>
+
+            <div id="neighborResult" class="query-result" style="display: none;">
+                <h4>查询结果</h4>
+                <div id="neighborInfo"></div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="query-section">
+            <h3>图谱统计</h3>
+            <button id="statsBtn" class="btn btn-secondary">获取统计信息</button>
+
+            <div id="statsResult" class="query-result" style="display: none;">
+                <h4>统计信息</h4>
+                <div id="statsInfo"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/query.js') }}"></script>
+{% endblock %}
