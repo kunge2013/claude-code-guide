@@ -67,7 +67,7 @@ logs/
 Thumbs.db
 
 # Project specific
-.claude/*
+!.claude/*
 !.claude/commands/
 !.claude/commands/*.md
 *.cache
