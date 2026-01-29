@@ -1,0 +1,155 @@
+# Entity Extraction Configuration
+
+extraction:
+  strategy: pydantic  # Options: pydantic, schema, hybrid
+
+  llm:
+    provider: ${LLM_PROVIDER:-openai}
+    model: ${OPENAI_MODEL:-gpt-4}
+    temperature: ${EXTRACTION_TEMPERATURE:-0.0}
+    max_retries: ${EXTRACTION_MAX_RETRIES:-3}
+    request_timeout: 60
+
+  validation:
+    enable_strict_validation: ${VALIDATION_STRICT:-true}
+    require_all_fields: ${VALIDATION_REQUIRE_ALL_FIELDS:-false}
+    allow_partial_results: true
+
+  output:
+    include_confidence: ${OUTPUT_INCLUDE_CONFIDENCE:-true}
+    include_raw_output: false
+    format: ${OUTPUT_FORMAT:-json}  # Options: json, yaml, dict
+
+entity_types:
+  person:
+    enabled: true
+    description: "Person information including name, age, and attributes"
+    priority: 1
+    schema:
+      properties:
+        name:
+          type: string
+          description: "Full name of the person"
+        age:
+          type: integer
+          description: "Age in years"
+        title:
+          type: string
+          description: "Job title or position"
+        organization:
+          type: string
+          description: "Company or organization name"
+        email:
+          type: string
+          description: "Email address"
+        phone:
+          type: string
+          description: "Phone number"
+      required:
+        - name
+
+  organization:
+    enabled: true
+    description: "Company or organization information"
+    priority: 2
+    schema:
+      properties:
+        name:
+          type: string
+          description: "Organization name"
+        industry:
+          type: string
+          description: "Industry sector"
+        founded_year:
+          type: integer
+          description: "Year founded"
+        headquarters:
+          type: string
+          description: "Headquarters location"
+        website:
+          type: string
+          description: "Company website URL"
+      required:
+        - name
+
+  product:
+    enabled: true
+    description: "Product details including name, price, and features"
+    priority: 3
+    schema:
+      properties:
+        name:
+          type: string
+          description: "Product name"
+        price:
+          type: number
+          description: "Price in currency"
+        currency:
+          type: string
+          description: "Currency code"
+        category:
+          type: string
+          description: "Product category"
+        features:
+          type: array
+          items:
+            type: string
+          description: "Product features"
+      required:
+        - name
+
+  location:
+    enabled: true
+    description: "Geographic locations and addresses"
+    priority: 4
+    schema:
+      properties:
+        name:
+          type: string
+          description: "Location name"
+        type:
+          type: string
+          description: "Type of location (city, country, address, etc.)"
+        country:
+          type: string
+          description: "Country name"
+        region:
+          type: string
+          description: "Region or state"
+      required:
+        - name
+
+  event:
+    enabled: true
+    description: "Events with dates and participants"
+    priority: 5
+    schema:
+      properties:
+        name:
+          type: string
+          description: "Event name"
+        date:
+          type: string
+          description: "Event date"
+        location:
+          type: string
+          description: "Event location"
+        participants:
+          type: array
+          items:
+            type: string
+          description: "Event participants"
+      required:
+        - name
+
+relationships:
+  enabled: true
+  types:
+    - works_at
+    - located_in
+    - founded_by
+    - owns
+    - participates_in
+    - related_to
+    - knows
+    - manages
