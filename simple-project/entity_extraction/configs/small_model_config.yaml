@@ -1,0 +1,122 @@
+# Small Model Configuration
+
+# NER Model Configuration
+ner_model:
+  name: "hfl/chinese-bert-wwm-ext"
+  max_seq_length: 128
+  num_labels: 13
+  dropout: 0.1
+
+  # Label list (BIO format)
+  labels:
+    - "O"
+    - "B-PRODUCT"
+    - "I-PRODUCT"
+    - "B-TIME"
+    - "I-TIME"
+    - "B-FIELD"
+    - "I-FIELD"
+    - "B-ORG"
+    - "I-ORG"
+    - "B-PERSON"
+    - "I-PERSON"
+    - "B-LOCATION"
+    - "I-LOCATION"
+
+  # Training settings
+  training:
+    num_epochs: 10
+    batch_size: 16
+    learning_rate: 2.0e-5
+    warmup_steps: 500
+    weight_decay: 0.01
+    gradient_accumulation_steps: 1
+
+  # Evaluation settings
+  evaluation:
+    eval_steps: 500
+    save_steps: 1000
+    logging_steps: 100
+
+  # Model paths
+  paths:
+    output_dir: "models/ner_bert"
+    cache_dir: null
+
+  # Inference settings
+  inference:
+    device: "cuda"
+    use_fp16: false
+    confidence_threshold: 0.8
+
+# Seq2Seq Model Configuration
+seq2seq_model:
+  name: "uer/t5-small"
+  max_source_length: 128
+  max_target_length: 128
+
+  # Training settings
+  training:
+    num_epochs: 5
+    batch_size: 8
+    learning_rate: 3.0e-4
+    warmup_ratio: 0.1
+    weight_decay: 0.01
+
+  # Generation settings
+  generation:
+    num_beams: 4
+    no_repeat_ngram_size: 2
+    early_stopping: true
+    length_penalty: 0.6
+    max_length: 128
+
+  # Evaluation settings
+  evaluation:
+    eval_steps: 200
+    save_steps: 500
+    logging_steps: 50
+
+  # Model paths
+  paths:
+    output_dir: "models/rewrite_t5"
+    cache_dir: null
+
+  # Inference settings
+  inference:
+    device: "cuda"
+    use_fp16: false
+
+  # Prefix for generation
+  generation_prefix: "改写问题："
+
+# Hybrid Service Configuration
+hybrid_service:
+  # Confidence thresholds for routing
+  confidence_threshold: 0.7
+  verify_threshold: 0.9
+
+  # Model paths
+  ner_model_path: "models/ner_bert"
+  t5_model_path: "models/rewrite_t5"
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  log_level: "info"
+
+# Data Configuration
+data:
+  ner:
+    train: "data/ner/train.jsonl"
+    dev: "data/ner/dev.jsonl"
+    test: "data/ner/test.jsonl"
+    labels: "data/ner/labels.txt"
+
+  rewrite:
+    train: "data/rewrite/train.jsonl"
+    dev: "data/rewrite/dev.jsonl"
+    test: "data/rewrite/test.jsonl"
+    template: "data/templates/training_data_template.jsonl"

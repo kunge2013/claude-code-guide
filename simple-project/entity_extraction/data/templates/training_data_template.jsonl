@@ -1,0 +1,14 @@
+{"text": "今年cdn产品金额是多少", "entities": [{"entity": "今年", "label": "TIME", "start": 0, "end": 2}, {"entity": "cdn", "label": "PRODUCT", "start": 2, "end": 5}, {"entity": "金额", "label": "FIELD", "start": 6, "end": 8}]}
+{"text": "上月ecs产品的订单数量", "entities": [{"entity": "上月", "label": "TIME", "start": 0, "end": 2}, {"entity": "ecs", "label": "PRODUCT", "start": 3, "end": 6}, {"entity": "数量", "label": "FIELD", "start": 11, "end": 13}]}
+{"text": "去年oss产品的收入", "entities": [{"entity": "去年", "label": "TIME", "start": 0, "end": 2}, {"entity": "oss", "label": "PRODUCT", "start": 2, "end": 5}, {"entity": "收入", "label": "FIELD", "start": 5, "end": 7}]}
+{"text": "最近7天slb产品的流量", "entities": [{"entity": "最近7天", "label": "TIME", "start": 0, "end": 4}, {"entity": "slb", "label": "PRODUCT", "start": 4, "end": 7}, {"entity": "流量", "label": "FIELD", "start": 7, "end": 9}]}
+{"text": "阿里云CDN产品价格为每GB 0.2元", "entities": [{"entity": "阿里云", "label": "ORG", "start": 0, "end": 3}, {"entity": "CDN", "label": "PRODUCT", "start": 3, "end": 6}]}
+{"text": "张三负责cdn产品的技术支持工作", "entities": [{"entity": "张三", "label": "PERSON", "start": 0, "end": 2}, {"entity": "cdn", "label": "PRODUCT", "start": 7, "end": 10}]}
+{"text": "腾讯云的北京数据中心部署了新节点", "entities": [{"entity": "腾讯云", "label": "ORG", "start": 0, "end": 3}, {"entity": "北京", "label": "LOCATION", "start": 5, "end": 7}]}
+{"text": "华为在2024年推出了新款手机Mate60", "entities": [{"entity": "华为", "label": "ORG", "start": 0, "end": 2}, {"entity": "2024年", "label": "TIME", "start": 4, "end": 9}, {"entity": "Mate60", "label": "PRODUCT", "start": 14, "end": 19}]}
+{"text": "李四使用iPhone 15 Pro打视频电话", "entities": [{"entity": "李四", "label": "PERSON", "start": 0, "end": 2}, {"entity": "iPhone 15 Pro", "label": "PRODUCT", "start": 4, "end": 15}]}
+{"input": "今年cdn产品金额是多少", "target": "产品ID为cdn，时间为2026年的出账金额是多少"}
+{"input": "上月ecs产品的订单数量", "target": "产品ID为ecs，时间为2025年12月的订单数量是多少"}
+{"input": "去年oss产品的收入", "target": "产品ID为oss，时间为2025年的营业收入是多少"}
+{"input": "最近7天slb产品的流量", "target": "产品ID为slb，时间为2026-01-22至2026-01-29的流量是多少"}
+{"input": "今年cdn和ecs产品的总金额", "target": "产品ID为cdn和产品ID为ecs，时间为2026年的出账金额总和是多少"}
