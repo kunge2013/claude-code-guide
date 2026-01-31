@@ -1,0 +1,95 @@
+@startuml High-Level Architecture
+' PlantUML Template: High-Level System Architecture
+' This template provides a bird's-eye view of the system architecture
+' Customize based on the actual project structure
+
+!define ACTOR #LIGHTBLUE
+!define SYSTEM #LIGHTGREEN
+!define DATABASE #ORANGE
+!define EXTERNAL #LIGHTGRAY
+!define QUEUE #PINK
+
+title System Architecture - [PROJECT_NAME]
+
+' External Actors
+actor "End User" as user ACTOR
+actor "Admin User" as admin ACTOR
+database "External API/Service" as external_api EXTERNAL
+
+' Load Balancer / API Gateway (if applicable)
+package "API Gateway / Load Balancer" as gateway {
+    component "Nginx / Traefik / AWS ALB" as lb
+}
+
+' Main Application Boundary
+rectangle "Application Boundary" as app_boundary {
+
+    ' Frontend Layer (if applicable)
+    package "Presentation Layer" as presentation {
+        component "Web Application" as web_app SYSTEM
+        component "Mobile App" as mobile_app SYSTEM
+        component "SPA / Frontend" as spa SYSTEM
+    }
+
+    ' Backend Services
+    package "Application Layer" as application {
+        component "API Server" as api_server SYSTEM
+        component "Business Logic Service" as business_service SYSTEM
+        component "Background Job Processor" as background_jobs SYSTEM
+    }
+
+    ' Data Layer
+    package "Data Layer" as data {
+        database "Primary Database" as primary_db DATABASE
+        database "Cache Layer" as cache DATABASE
+        database "Search Engine" as search DATABASE
+    }
+
+    ' Message Queue (if applicable)
+    queue "Message Queue" as message_queue QUEUE {
+        component "Redis / RabbitMQ / Kafka" as mq_component
+    }
+}
+
+' External Services
+package "External Services" as external_services {
+    component "Email Service" as email EXTERNAL
+    component "Payment Gateway" as payment EXTERNAL
+    component "CDN / Storage" as storage EXTERNAL
+}
+
+' Relationships
+user --> web_app : HTTP/HTTPS
+user --> spa : HTTP/HTTPS
+admin --> admin : HTTPS
+
+web_app --> lb : HTTP/HTTPS
+spa --> lb : HTTP/HTTPS
+mobile_app --> lb : HTTPS
+
+lb --> api_server : Reverse Proxy
+
+api_server --> business_service : Internal Calls
+api_server --> cache : Read/Write
+api_server --> primary_db : Query/Update
+api_server --> search : Search
+
+business_service --> primary_db : CRUD Operations
+business_service --> message_queue : Publish Events
+business_service --> external_api : External Calls
+
+background_jobs --> message_queue : Consume
+background_jobs --> primary_db : Batch Processing
+background_jobs --> email : Send Notifications
+background_jobs --> payment : Process Transactions
+
+' Legend
+legend right
+  |<#LIGHTBLUE> ACTOR | External Users/Systems |
+  |<#LIGHTGREEN> SYSTEM | Application Components |
+  |<#ORANGE> DATABASE | Data Storage |
+  |<#LIGHTGRAY> EXTERNAL | Third-party Services |
+  |<#PINK> QUEUE | Message Queue/Cache |
+endlegend
+
+@enduml

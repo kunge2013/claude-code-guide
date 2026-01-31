@@ -1,0 +1,209 @@
+@startuml Technology Stack Architecture
+' PlantUML Template: Technology Stack (Layered Architecture)
+' This template shows the technology choices at each architectural layer
+' Customize based on the actual project's technology stack
+
+title Technology Stack - [PROJECT_NAME]
+
+skinparam rectangle {
+    BorderColor #333333
+    BorderThickness 2
+}
+
+' Presentation Layer
+rectangle "**Presentation Layer**" as presentation_layer #E3F2FD {
+
+    rectangle "Frontend Framework" as frontend_framework {
+        component "**React / Vue / Angular**" as js_framework
+        note right of js_framework
+          UI Components
+          State Management
+          Routing
+        end note
+    }
+
+    rectangle "Template Engine" as template_engine {
+        component "**Jinja2 / Thymeleaf / Handlebars**" as templates
+        note right of templates
+          Server-side Rendering
+          Template Inheritance
+        end note
+    }
+
+    rectangle "Static Assets" as static_assets {
+        component "**Webpack / Vite**" as bundler
+        component "**Nginx / CDN**" as cdn
+    }
+}
+
+' Application Layer
+rectangle "**Application Layer**" as application_layer #FFF3E0 {
+
+    rectangle "Language Runtime" as language_runtime {
+        component "**Python 3.11+ / Node.js 20 / Java 17**" as runtime
+    }
+
+    rectangle "Web Framework" as web_framework {
+        component "**FastAPI / Django / Spring Boot / Express**" as framework
+        note right of framework
+          Request/Response Handling
+          Middleware Pipeline
+          Dependency Injection
+        end note
+    }
+
+    rectangle "API Layer" as api_layer {
+        component "**REST / GraphQL / gRPC**" as api_type
+    }
+
+    rectangle "Task Processing" as task_processing {
+        component "**Celery / Bull / Sidekiq**" as task_queue
+        component "**APScheduler / node-cron**" as scheduler
+    }
+}
+
+' Domain Layer
+rectangle "**Domain Layer**" as domain_layer #F3E5F5 {
+
+    rectangle "Domain Models" as domain_models {
+        component "**Pydantic / SQLAlchemy Models / JPA Entities**" as models
+        note right of models
+          Business Entities
+          Validation Rules
+          Domain Logic
+        end note
+    }
+
+    rectangle "Business Logic" as business_logic {
+        component "**Service Classes / Use Cases**" as services
+    }
+}
+
+' Data Layer
+rectangle "**Data Layer**" as data_layer #E8F5E9 {
+
+    rectangle "Databases" as databases {
+        component "**PostgreSQL / MySQL**" as relational_db
+        component "**MongoDB / CouchDB**" as document_db
+        note right of relational_db
+          Primary Data Store
+          ACID Transactions
+          Relational Integrity
+        end note
+    }
+
+    rectangle "ORM / Database Access" as orm {
+        component "**SQLAlchemy / Hibernate / Prisma**" as orm_tool
+        note right of orm_tool
+          Query Building
+          Migration Management
+          Connection Pooling
+        end note
+    }
+
+    rectangle "Caching" as caching {
+        component "**Redis / Memcached**" as cache
+        note right of cache
+          Session Storage
+          Query Result Cache
+          Distributed Locking
+        end note
+    }
+
+    rectangle "Search" as search {
+        component "**Elasticsearch / Solr**" as search_engine
+    }
+}
+
+' Infrastructure Layer
+rectangle "**Infrastructure Layer**" as infrastructure_layer #ECEFF1 {
+
+    rectangle "Container & Orchestration" as containers {
+        component "**Docker / Podman**" as container
+        component "**Kubernetes / Docker Compose**" as orchestration
+    }
+
+    rectangle "Message Queue" as message_queue {
+        component "**RabbitMQ / Kafka / Redis Streams**" as mq
+        note right of mq
+          Event Streaming
+          Async Processing
+          Service Decoupling
+        end note
+    }
+
+    rectangle "Object Storage" as object_storage {
+        component "**AWS S3 / MinIO / Azure Blob**" as storage
+    }
+
+    rectangle "API Gateway" as api_gateway {
+        component "**Nginx / Traefik / Kong / AWS ALB**" as gateway
+    }
+}
+
+' Observability & DevOps
+rectangle "**Observability & DevOps**" as observability_layer #FCE4EC {
+
+    rectangle "Monitoring" as monitoring {
+        component "**Prometheus / Grafana**" as metrics
+    }
+
+    rectangle "Logging" as logging {
+        component "**ELK Stack / Loki / CloudWatch**" as logs
+    }
+
+    rectangle "Tracing" as tracing {
+        component "**Jaeger / Zipkin / OpenTelemetry**" as traces
+    }
+
+    rectangle "CI/CD" as cicd {
+        component "**GitHub Actions / GitLab CI / Jenkins**" as pipeline
+    }
+}
+
+' Security Layer
+rectangle "**Security Layer**" as security_layer #FFEBEE {
+
+    rectangle "Authentication" as auth {
+        component "**JWT / OAuth 2.0 / SAML**" as auth_method
+        note right of auth_method
+          Identity Verification
+          Token Management
+          SSO Integration
+        end note
+    }
+
+    rectangle "Authorization" as authorization {
+        component "**RBAC / ABAC / Casbin**" as authz
+    }
+
+    rectangle "Secrets Management" as secrets {
+        component "**HashiCorp Vault / AWS Secrets Manager**" as vault
+    }
+}
+
+' Layer Dependencies (arrows show dependencies)
+presentation_layer -down-> application_layer
+application_layer -down-> domain_layer
+domain_layer -down-> data_layer
+data_layer -down-> infrastructure_layer
+
+infrastructure_layer -down-> observability_layer
+observability_layer -down-> security_layer
+
+' External Dependencies
+application_layer -right-> infrastructure_layer : Async Tasks
+application_layer -right-> security_layer : Auth/Authz
+domain_layer -right-> data_layer : Persistence
+
+legend right
+  |<#E3F2BD> Presentation Layer | User Interface & API |
+  |<#FFF3E0> Application Layer | Business Logic & Orchestration |
+  |<#F3E5F5> Domain Layer | Core Business Rules |
+  |<#E8F5E9> Data Layer | Persistence & Storage |
+  |<#ECEFF1> Infrastructure Layer | Platform & Services |
+  |<#FCE4EC> Observability & DevOps | Monitoring & Operations |
+  |<#FFEBEE> Security Layer | Identity & Access Control |
+endlegend
+
+@enduml

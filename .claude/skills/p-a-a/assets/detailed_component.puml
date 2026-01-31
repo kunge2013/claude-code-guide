@@ -1,0 +1,195 @@
+@startuml Detailed Component Diagram
+' PlantUML Template: Detailed Component Architecture
+' This template shows detailed component relationships and interactions
+' Customize based on the actual project structure and modules
+
+!define CONTROLLER #E1F5FF
+!define SERVICE #FFF9C4
+!define REPOSITORY #F3E5F5
+!define MODEL #E8F5E9
+!define UTILS #FFEBEE
+!define EXTERNAL #ECEFF1
+
+title Detailed Component Architecture - [PROJECT_NAME]
+
+' Layered Architecture View
+package "Presentation Layer (Controllers/API)" <<Rectangle>> {
+
+    component "REST API Controllers" as rest_controllers CONTROLLER {
+        [AuthController]
+        [UserController]
+        [BusinessEntityController]
+        [TransactionController]
+    }
+
+    component "GraphQL Resolvers" as graphql_resolvers CONTROLLER {
+        [QueryResolver]
+        [MutationResolver]
+    }
+
+    component "WebSocket Handlers" as websocket_handlers CONTROLLER {
+        [ConnectionHandler]
+        [MessageHandler]
+    }
+}
+
+package "Application Layer (Services/Use Cases)" <<Rectangle>> {
+
+    component "Core Services" as core_services SERVICE {
+        [AuthService]
+        [UserService]
+        [BusinessService]
+        [TransactionService]
+    }
+
+    component "Business Logic" as business_logic SERVICE {
+        [ValidationService]
+        [CalculationService]
+        [WorkflowService]
+    }
+
+    component "Integration Services" as integration_services SERVICE {
+        [ExternalAPIClient]
+        [NotificationService]
+        [FileProcessingService]
+    }
+}
+
+package "Domain Layer (Models/Entities)" <<Rectangle>> {
+
+    component "Domain Models" as domain_models MODEL {
+        [User]
+        [BusinessEntity]
+        [Transaction]
+        [AuditLog]
+    }
+
+    component "Value Objects" as value_objects MODEL {
+        [Money]
+        [EmailAddress]
+        [PhoneNumber]
+    }
+
+    component "Domain Events" as domain_events MODEL {
+        [UserRegisteredEvent]
+        [TransactionCompletedEvent]
+    }
+}
+
+package "Infrastructure Layer (Repositories/Data Access)" <<Rectangle>> {
+
+    component "Repositories" as repositories REPOSITORY {
+        [UserRepository]
+        [BusinessEntityRepository]
+        [TransactionRepository]
+    }
+
+    component "Data Access" as data_access REPOSITORY {
+        [DatabaseConnection]
+        [TransactionManager]
+        [QueryBuilder]
+    }
+
+    component "Caching" as caching REPOSITORY {
+        [CacheProvider]
+        [CacheKeyGenerator]
+    }
+}
+
+package "Utilities & Cross-Cutting Concerns" <<Rectangle>> {
+
+    component "Logging" as logging UTILS {
+        [Logger]
+        [AuditLogger]
+    }
+
+    component "Configuration" as config UTILS {
+        [ConfigLoader]
+        [SecretManager]
+    }
+
+    component "Security" as security UTILS {
+        [JWTValidator]
+        [PasswordHasher]
+        [RBACChecker]
+    }
+}
+
+package "External Dependencies" <<Rectangle>> {
+
+    database "Primary Database" as db EXTERNAL {
+        [PostgreSQL/MySQL]
+    }
+
+    database "Cache Server" as cache_server EXTERNAL {
+        [Redis/Memcached]
+    }
+
+    component "Message Queue" as mq EXTERNAL {
+        [RabbitMQ/Kafka]
+    }
+
+    component "External APIs" as external_apis EXTERNAL {
+        [Payment Gateway]
+        [Email Service]
+        [SMS Service]
+    }
+}
+
+' Relationships and Data Flow
+
+' Controllers to Services
+rest_controllers --> core_services : 1. HTTP Request
+graphql_resolvers --> core_services : 2. Query/Mutation
+websocket_handlers --> business_logic : 3. Event Processing
+
+' Services to Domain
+core_services --> domain_models : 4. Read/Write
+business_logic --> value_objects : 5. Use
+core_services --> domain_events : 6. Publish
+
+' Services to Infrastructure
+core_services --> repositories : 7. Persist Data
+integration_services --> external_apis : 8. API Calls
+core_services --> caching : 9. Cache Check
+
+' Infrastructure to External
+repositories --> data_access : 10. Query
+data_access --> db : 11. SQL
+caching --> cache_server : 12. Get/Set
+core_services --> mq : 13. Publish Event
+
+' Cross-cutting
+core_services --> logging : 14. Log
+core_services --> security : 15. Authorize
+rest_controllers --> config : 16. Load Config
+
+' Notes
+note right of rest_controllers
+  Entry points for HTTP requests
+  Handle validation, parsing
+  Delegate to services
+end note
+
+note right of core_services
+  Orchestrate business logic
+  Maintain transaction boundaries
+  Coordinate repositories
+end note
+
+note right of repositories
+  Abstract data access
+  Handle ORM/SQL generation
+  Provide domain models
+end note
+
+legend right
+  |<#E1F5FF> CONTROLLER | HTTP/WebSocket Handlers |
+  |<#FFF9C4> SERVICE | Business Logic & Services |
+  |<#F3E5F5> REPOSITORY | Data Access & Persistence |
+  |<#E8F5E9> MODEL | Domain Models & Entities |
+  |<#FFEBEE> UTILS | Utilities & Cross-cutting |
+  |<#ECEFF1> EXTERNAL | External Systems |
+endlegend
+
+@enduml
