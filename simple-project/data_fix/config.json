@@ -1,0 +1,8 @@
+{
+    "host": "192.168.2.161",
+    "port": 8866,
+    "user": "jtbill",
+    "password": "Jtbill_#1024",
+    "database": "Jtbill_uat",
+    "charset": "utf8mb4"
+}

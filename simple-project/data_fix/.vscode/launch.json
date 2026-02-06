@@ -1,0 +1,60 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Flask (app.py)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "app.py",
+                "FLASK_DEBUG": "1",
+                "http_proxy": "",
+                "https_proxy": "",
+                "HTTP_PROXY": "",
+                "HTTPS_PROXY": "",
+                "all_proxy": "",
+                "ALL_PROXY": ""
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload"
+            ],
+            "jinja": true,
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env": {
+                "http_proxy": "",
+                "https_proxy": "",
+                "HTTP_PROXY": "",
+                "HTTPS_PROXY": "",
+                "all_proxy": "",
+                "ALL_PROXY": ""
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Python: app.py (direct)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app.py",
+            "console": "integratedTerminal",
+            "env": {
+                "http_proxy": "",
+                "https_proxy": "",
+                "HTTP_PROXY": "",
+                "HTTPS_PROXY": "",
+                "all_proxy": "",
+                "ALL_PROXY": ""
+            },
+            "justMyCode": false
+        }
+    ]
+}

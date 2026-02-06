@@ -1,0 +1,10 @@
+# 忽略 .env 文件
+.env
+
+# 只保留 data_fix 目录，忽略其他所有子目录
+/agent_for_resume/
+/baidu_pan/
+/chatbi/
+/entity_extraction/
+/langchain_graph_rag/
+/test/

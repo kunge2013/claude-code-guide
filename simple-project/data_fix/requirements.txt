@@ -1,0 +1,11 @@
+pymysql>=1.0.2
+flask>=3.0.0
+# LLM dependencies for SQL generation (langchain + Zhipu AI GLM-4.7)
+# Migrated to LangChain 1.2.6 (requires Python 3.10+)
+langchain==1.2.6
+langchain-community==0.3.14
+langchain-core==0.3.28
+python-dotenv>=1.0.0
+# Optional: for direct ZhipuAI API access (fallback)
+zhipuai>=2.0.0
+PyJWT==2.8.0

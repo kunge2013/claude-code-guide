@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Query Tool - MySQL</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1>SQL Query Tool</h1>
+            <button id="configBtn" class="btn btn-secondary">
+                <span class="icon">⚙</span> Configuration
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Query Input Section -->
+            <section class="query-section">
+                <div class="input-group">
+                    <label for="prodInstId">PROD_INST_ID:</label>
+                    <input type="text" id="prodInstId" placeholder="Enter PROD_INST_ID..." autofocus>
+                    <button id="queryAllBtn" class="btn btn-primary">Run All Queries</button>
+                    <button id="clearBtn" class="btn btn-secondary">Clear</button>
+                </div>
+            </section>
+
+            <!-- Color Legend (for Change Record) -->
+            <section id="colorLegend" class="color-legend" style="display: none;">
+                <span class="legend-title">颜色说明:</span>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #dc2626;"></div>
+                    <span class="legend-text">深红色 - 异常数据1 (点击过滤)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #9333ea;"></div>
+                    <span class="legend-text">紫色 - 异常数据2 (点击过滤)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #fef3c7; border: 1px solid #f59e0b;"></div>
+                    <span class="legend-text">金黄色系 - 账目项分组</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-text">💡 点击异常行可过滤数据</span>
+                </div>
+            </section>
+
+            <!-- Three Column Results -->
+            <section class="results-section">
+                <!-- Column 1: Change Record (wide) -->
+                <div class="result-column change-record-wide" data-query="change-record">
+                    <div class="column-header">
+                        <h2>Change Record</h2>
+                        <span class="result-count">0 rows</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="result-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state">No data</div>
+                    </div>
+                    <div class="sql-display">
+                        <div class="sql-header">
+                            <strong>SQL Query:</strong>
+                            <button class="copy-sql-btn" data-type="change-record">Copy</button>
+                        </div>
+                        <pre class="sql-content">-- SQL query will appear here after execution</pre>
+                    </div>
+                </div>
+
+                <!-- Column 2: Change Log -->
+                <div class="result-column" data-query="change-log">
+                    <div class="column-header">
+                        <h2>Change Log</h2>
+                        <span class="result-count">0 rows</span>
+                    </div>
+                    <div class="filter-bar">
+                        <input type="text" id="attrNameFilter" placeholder="输入 ATTR_NAME 过滤..." class="filter-input">
+                        <span class="filter-count" id="filterCount"></span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="result-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state">No data</div>
+                    </div>
+                    <div class="sql-display">
+                        <div class="sql-header">
+                            <strong>SQL Query:</strong>
+                            <button class="copy-sql-btn" data-type="change-log">Copy</button>
+                        </div>
+                        <pre class="sql-content">-- SQL query will appear here after execution</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Instance Info Drawer Button -->
+            <button id="drawerToggle" class="drawer-toggle" title="Instance Info">
+                <span class="icon">📋</span>
+            </button>
+
+            <!-- Instance Info Drawer -->
+            <div id="instanceDrawer" class="drawer">
+                <div class="drawer-header">
+                    <h2>Instance Info</h2>
+                    <button class="close-drawer" id="closeDrawer">&times;</button>
+                </div>
+                <div class="drawer-content">
+                    <div class="table-wrapper">
+                        <table class="result-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state">No data</div>
+                    </div>
+                    <div class="sql-display">
+                        <div class="sql-header">
+                            <strong>SQL Query:</strong>
+                            <button class="copy-sql-btn" data-type="instance-info">Copy</button>
+                        </div>
+                        <pre class="sql-content">-- SQL query will appear here after execution</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+        <div class="container">
+            <span id="statusText">Ready</span>
+        </div>
+    </footer>
+
+    <!-- Configuration Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Database Configuration</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="configForm">
+                    <div class="form-group">
+                        <label for="dbHost">Host:</label>
+                        <input type="text" id="dbHost" name="host" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dbPort">Port:</label>
+                        <input type="number" id="dbPort" name="port" value="3306" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dbUser">User:</label>
+                        <input type="text" id="dbUser" name="user" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dbPassword">Password:</label>
+                        <input type="password" id="dbPassword" name="password">
+                    </div>
+                    <div class="form-group">
+                        <label for="dbDatabase">Database:</label>
+                        <input type="text" id="dbDatabase" name="database" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="testConnBtn" class="btn btn-secondary">Test Connection</button>
+                <button id="saveConfigBtn" class="btn btn-primary">Save</button>
+                <button id="cancelConfigBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SQL Fix Modal -->
+    <div id="sqlFixModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>异常数据修复</h2>
+                <button class="close-btn" id="closeSqlModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="violationInfo"></div>
+
+                <div class="section-header">
+                    <h3>当前异常数据</h3>
+                </div>
+                <div id="currentData"></div>
+
+                <div class="section-header">
+                    <h3>修复后的数据</h3>
+                </div>
+                <div id="fixedData"></div>
+
+                <div class="section-header">
+                    <h3>修复 SQL</h3>
+                </div>
+                <div class="sql-code-block">
+                    <button id="copySqlBtn" class="btn btn-primary sql-copy-btn">复制 SQL</button>
+                    <pre id="sqlStatement"></pre>
+                </div>
+
+                <div class="section-header">
+                    <h3>大模型修复 SQL</h3>
+                </div>
+                <div class="sql-code-block">
+                    <button id="generateLlmSqlBtn" class="btn btn-primary" style="width: 100%; position: static; margin-bottom: 10px;">
+                        <span class="icon">🤖</span> 生成大模型修复SQL
+                    </button>
+                    <div id="llmSqlResult" style="display: none;">
+                        <button id="copyLlmSqlBtn" class="btn btn-primary sql-copy-btn">复制大模型SQL</button>
+                        <pre id="llmSqlStatement"></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeSqlModalBtn" class="btn btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu for Invalid Rows -->
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" id="generateSqlMenuItem">
+            <span>🔧 生成修复SQL</span>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

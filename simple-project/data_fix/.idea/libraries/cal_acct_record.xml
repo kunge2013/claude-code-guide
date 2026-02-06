@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="cal_acct_record数据修复">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/cal_acct_record数据修复v1.zip!/" />
+      <root url="jar://$PROJECT_DIR$/cal_acct_record数据修复.zip!/" />
+      <root url="jar://$PROJECT_DIR$/cal_acct_record数据修复v2.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
