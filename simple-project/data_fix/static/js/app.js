@@ -1315,228 +1315,89 @@ class SQLQueryTool {
         modal._tabsInitialized = true;
     }
 
-    // ==================== 时间线渲染 ====================
+    // ==================== 修复对比渲染 ====================
     renderTimeline(originalRows) {
-        const svg = document.getElementById('timelineSvg');
-        if (!svg || !originalRows || originalRows.length === 0) return;
+        if (!originalRows || originalRows.length === 0) return;
 
-        // 获取修复后的数据
         const fixedRows = this.currentViolationData?.fixedRows || null;
-        const hasChanges = fixedRows && this.hasDataChanged(originalRows, fixedRows);
+        const beforeTableBody = document.querySelector('#beforeTable tbody');
+        const afterTableBody = document.querySelector('#afterTable tbody');
+        const changeList = document.getElementById('changeList');
 
-        // 计算时间范围
-        const allRows = fixedRows ? [...originalRows, ...fixedRows] : originalRows;
-        const dates = allRows.flatMap(r => [
-            new Date(r.START_DATE || 0),
-            r.END_DATE ? new Date(r.END_DATE) : new Date()
-        ]);
-        const minDate = new Date(Math.min(...dates));
-        const maxDate = new Date(Math.max(...dates));
-        minDate.setHours(0, 0, 0, 0);
-        maxDate.setHours(23, 59, 59, 999);
+        if (!beforeTableBody || !afterTableBody) return;
 
-        // 按年显示时间轴
-        const yearMs = 365 * 24 * 60 * 60 * 1000;
-        const totalYears = Math.max(8, Math.ceil((maxDate - minDate) / yearMs) + 1);
+        // 清空表格
+        beforeTableBody.innerHTML = '';
+        afterTableBody.innerHTML = '';
+        if (changeList) changeList.innerHTML = '';
 
-        // 配置 - 使用固定大宽度，通过CSS自适应
-        const labelWidth = 200;
-        const yearWidth = 150;  // 每年的固定宽度
-        const rowHeight = 70;
-        const rowGap = 10;
-        const headerHeight = 80;
-        const sectionGap = hasChanges ? 50 : 0;
-        const width = labelWidth + totalYears * yearWidth + 100;
-        const section1Height = originalRows.length * (rowHeight + rowGap);
-        const section2Height = hasChanges && fixedRows ? fixedRows.length * (rowHeight + rowGap) : 0;
-        const height = headerHeight + section1Height + sectionGap + section2Height + 70;
+        const changes = [];
 
-        let svgContent = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" class="timeline-gantt">`;
+        // 渲染表格行
+        const renderRow = (row, tbody, isAfter = false) => {
+            const tr = document.createElement('tr');
+            const originalRow = isAfter ? originalRows.find(r => r.ID === row.ID) : null;
+            const hasChanged = originalRow && this.hasRowChanged(originalRow, row);
 
-        // 样式定义
-        svgContent += `
-            <defs>
-                <style>
-                    .timeline-title { font-size: 16px; font-weight: 700; fill: #1e293b; }
-                    .timeline-year { font-size: 13px; fill: #64748b; text-anchor: middle; font-weight: 600; }
-                    .timeline-grid { stroke: #e2e8f0; stroke-width: 1; }
-                    .timeline-row-id { font-size: 13px; fill: #334155; font-weight: 600; }
-                    .timeline-row-name { font-size: 11px; fill: #64748b; }
-                    .timeline-bar { cursor: pointer; }
-                    .timeline-bar-normal { fill: #3b82f6; }
-                    .timeline-bar-changed { fill: #f59e0b; }
-                    .timeline-bar-fixed { fill: #22c55e; }
-                    .timeline-bar-overlap { fill: #ef4444; opacity: 0.85; }
-                    .timeline-bar:hover { opacity: 0.8; }
-                    .timeline-date-text { font-size: 11px; fill: #ffffff; font-weight: 600; text-anchor: middle; }
-                    .timeline-date-outside { font-size: 10px; fill: #475569; font-weight: 600; }
-                    .timeline-change-text { font-size: 11px; fill: #b45309; font-weight: 700; }
-                    .timeline-arrow { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
-                    .timeline-section-divider { stroke: #e2e8f0; stroke-width: 2; stroke-dasharray: 6,4; }
-                </style>
-                <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                    <path d="M0,0 L8,3 L0,6" fill="#64748b"/>
-                </marker>
-            </defs>
-        `;
+            if (hasChanged) tr.classList.add('changed');
 
-        // 背景
-        svgContent += `<rect width="${width}" height="${height}" fill="#ffffff"/>`;
+            tr.innerHTML = `
+                <td>${row.ID}</td>
+                <td>${row.NAME || '-'}</td>
+                <td>${this.formatDate(row.START_DATE)}</td>
+                <td>${this.formatDate(row.END_DATE)}</td>
+                <td>${row.START_FLAG == 1 ? '✓' : '-'}</td>
+                <td>${row.LATEST_FLAG == 1 ? '✓' : '-'}</td>
+            `;
+            tbody.appendChild(tr);
 
-        // 计算X坐标
-        const getDateX = (date) => {
-            const d = new Date(date);
-            const offset = d - minDate;
-            return labelWidth + (offset / yearMs) * yearWidth;
-        };
-
-        const formatDate = (d) => {
-            const date = new Date(d);
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        };
-
-        // 绘制时间轴（年份）
-        svgContent += `<line x1="${labelWidth}" y1="${headerHeight}" x2="${width - 30}" y2="${headerHeight}" stroke="#cbd5e1" stroke-width="2"/>`;
-        for (let y = 0; y <= totalYears; y++) {
-            const x = labelWidth + y * yearWidth;
-            const yearDate = new Date(minDate.getTime() + y * yearMs);
-            const year = yearDate.getFullYear();
-
-            svgContent += `<line x1="${x}" y1="${headerHeight - 10}" x2="${x}" y2="${height - 60}" class="timeline-grid"/>`;
-            svgContent += `<text x="${x + yearWidth / 2}" y="${headerHeight - 20}" class="timeline-year">${year}年</text>`;
-        }
-
-        // 绘制一行数据
-        const drawRow = (row, y, isFixed = false, originalRow = null) => {
-            const startDate = new Date(row.START_DATE);
-            const endDate = row.END_DATE ? new Date(row.END_DATE) : maxDate;
-            const x1 = getDateX(startDate);
-            const x2 = getDateX(endDate);
-            const barWidth = Math.max(x2 - x1, 3);
-
-            // 检查是否有变化
-            let hasChange = false;
-            let changeInfo = '';
-            if (originalRow) {
+            // 记录变化
+            if (hasChanged && isAfter) {
                 if (String(originalRow.START_DATE) !== String(row.START_DATE)) {
-                    hasChange = true;
-                    changeInfo = `START_DATE: ${formatDate(originalRow.START_DATE)} → ${formatDate(row.START_DATE)}`;
+                    changes.push(`记录 #${row.ID}: 开始日期 ${this.formatDate(originalRow.START_DATE)} → ${this.formatDate(row.START_DATE)}`);
                 }
                 if (String(originalRow.END_DATE) !== String(row.END_DATE)) {
-                    hasChange = true;
-                    changeInfo = `END_DATE: ${formatDate(originalRow.END_DATE)} → ${formatDate(row.END_DATE)}`;
+                    changes.push(`记录 #${row.ID}: 结束日期 ${this.formatDate(originalRow.END_DATE)} → ${this.formatDate(row.END_DATE)}`);
                 }
-            }
-
-            const barClass = isFixed && hasChange ? 'timeline-bar-fixed' : hasChange ? 'timeline-bar-changed' : 'timeline-bar-normal';
-
-            // 标签
-            svgContent += `<text x="15" y="${y + 25}" class="timeline-row-id">#${row.ID}</text>`;
-            svgContent += `<text x="15" y="${y + 45}" class="timeline-row-name">${row.NAME || '未命名'}</text>`;
-
-            // 时间条
-            svgContent += `<g class="timeline-bar" data-id="${row.ID}">
-                <rect x="${x1}" y="${y + 5}" width="${barWidth}" height="${rowHeight - 10}" rx="5" class="${barClass}"/>`;
-
-            // 日期标签 - 根据宽度决定位置
-            if (barWidth > 100) {
-                svgContent += `<text x="${x1 + barWidth / 2}" y="${y + rowHeight / 2 + 4}" class="timeline-date-text">${formatDate(startDate)} ~ ${formatDate(endDate)}</text>`;
-            } else {
-                svgContent += `<text x="${x1 - 5}" y="${y + 22}" class="timeline-date-outside" text-anchor="end">${formatDate(startDate)}</text>`;
-                svgContent += `<text x="${x2 + 5}" y="${y + 22}" class="timeline-date-outside">${formatDate(endDate)}</text>`;
-            }
-
-            svgContent += `</g>`;
-
-            // 变化标记
-            if (hasChange) {
-                const tagY = y + rowHeight / 2;
-                const tagX = isFixed ? x2 + 10 : x1 - 10;
-                const tagAnchor = isFixed ? 'start' : 'end';
-                svgContent += `<text x="${tagX}" y="${tagY + 4}" class="timeline-change-text" text-anchor="${tagAnchor}">⚡ ${changeInfo}</text>`;
+                if (String(originalRow.START_FLAG) !== String(row.START_FLAG)) {
+                    changes.push(`记录 #${row.ID}: 首条标志 ${originalRow.START_FLAG} → ${row.START_FLAG}`);
+                }
+                if (String(originalRow.LATEST_FLAG) !== String(row.LATEST_FLAG)) {
+                    changes.push(`记录 #${row.ID}: 末条标志 ${originalRow.LATEST_FLAG} → ${row.LATEST_FLAG}`);
+                }
             }
         };
 
-        // 绘制重叠高亮
-        const drawOverlapHighlight = (rows, startY) => {
-            rows.forEach((row, i) => {
-                const y = startY + i * (rowHeight + rowGap) + 5;
-                const startDate = new Date(row.START_DATE);
-                const endDate = row.END_DATE ? new Date(row.END_DATE) : maxDate;
+        // 渲染修复前数据
+        originalRows.forEach(row => renderRow(row, beforeTableBody, false));
 
-                rows.forEach((otherRow, j) => {
-                    if (i >= j) return;
-                    const otherStart = new Date(otherRow.START_DATE);
-                    const otherEnd = otherRow.END_DATE ? new Date(otherRow.END_DATE) : maxDate;
-
-                    // 找出重叠区间
-                    const overlapStart = otherStart < endDate ? otherStart : null;
-                    const overlapEnd = startDate < otherEnd ? startDate : null;
-
-                    if (overlapStart && overlapEnd && overlapStart < overlapEnd) {
-                        const x1 = getDateX(overlapStart);
-                        const x2 = getDateX(overlapEnd);
-                        svgContent += `<rect x="${x1}" y="${y}" width="${Math.max(x2 - x1, 2)}" height="${rowHeight - 10}" class="timeline-bar-overlap" rx="5"/>`;
-                        svgContent += `<text x="${(x1 + x2) / 2}" y="${y + rowHeight / 2 + 4}" class="timeline-date-text">⚠️ 重叠!</text>`;
-                    }
-                });
-            });
-        };
-
-        // 修复前section
-        const section1Y = headerHeight;
-        svgContent += `<text x="15" y="${section1Y - 15}" class="timeline-title">❌ 修复前 (当前数据) - 红色区域表示时间重叠</text>`;
-        drawOverlapHighlight(originalRows, section1Y);
-        originalRows.forEach((row, i) => {
-            const y = section1Y + i * (rowHeight + rowGap);
-            drawRow(row, y, false, fixedRows?.find(r => r.ID === row.ID));
-        });
-
-        // 修复后section
-        if (fixedRows && hasChanges) {
-            const section2Y = section1Y + section1Height + sectionGap;
-            svgContent += `<line x1="0" y1="${section2Y - sectionGap / 2}" x2="${width}" y2="${section2Y - sectionGap / 2}" class="timeline-section-divider"/>`;
-            svgContent += `<text x="15" y="${section2Y - 15}" class="timeline-title">✅ 修复后 (预期数据) - 已消除重叠</text>`;
-
-            // 绘制箭头连接
-            originalRows.forEach((row, i) => {
-                const fixedRow = fixedRows.find(r => r.ID === row.ID);
-                if (fixedRow && this.hasRowChanged(row, fixedRow)) {
-                    const y1 = section1Y + i * (rowHeight + rowGap) + rowHeight / 2;
-                    const y2 = section2Y + fixedRows.indexOf(fixedRow) * (rowHeight + rowGap) + rowHeight / 2;
-                    svgContent += `<path d="M ${labelWidth - 40} ${y1} L ${labelWidth - 40} ${y2}" class="timeline-arrow"/>`;
-                }
-            });
-
-            fixedRows.forEach((row, i) => {
-                const y = section2Y + i * (rowHeight + rowGap);
-                drawRow(row, y, true, originalRows.find(r => r.ID === row.ID));
-            });
+        // 渲染修复后数据
+        if (fixedRows) {
+            fixedRows.forEach(row => renderRow(row, afterTableBody, true));
+        } else {
+            // 没有修复数据时，复制原数据
+            originalRows.forEach(row => renderRow(row, afterTableBody, false));
         }
 
-        // 图例
-        const legendY = height - 45;
-        svgContent += `
-            <g transform="translate(${labelWidth}, ${legendY})">
-                <rect width="24" height="16" rx="4" class="timeline-bar-normal"/>
-                <text x="30" y="13" font-size="12" fill="#475569" font-weight="600">正常记录</text>
+        // 显示变更说明
+        if (changeList && changes.length > 0) {
+            changes.forEach(change => {
+                const li = document.createElement('li');
+                li.textContent = change;
+                changeList.appendChild(li);
+            });
+        } else if (changeList) {
+            const li = document.createElement('li');
+            li.textContent = '无数据变更';
+            changeList.appendChild(li);
+        }
+    }
 
-                <rect x="130" width="24" height="16" rx="4" class="timeline-bar-changed"/>
-                <text x="160" y="13" font-size="12" fill="#475569" font-weight="600">需要修改</text>
-
-                <rect x="270" width="24" height="16" rx="4" class="timeline-bar-fixed"/>
-                <text x="300" y="13" font-size="12" fill="#475569" font-weight="600">已修复</text>
-
-                <rect x="390" width="24" height="16" rx="4" class="timeline-bar-overlap"/>
-                <text x="420" y="13" font-size="12" fill="#475569" font-weight="600">重叠异常</text>
-
-                <path d="M 520 8 L 550 8" class="timeline-arrow"/>
-                <text x="560" y="13" font-size="12" fill="#475569" font-weight="600">对应关系</text>
-            </g>
-        `;
-
-        svgContent += '</svg>';
-        svg.innerHTML = svgContent;
+    // 格式化日期
+    formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
     // 检查数据是否有变化
@@ -1559,8 +1420,6 @@ class SQLQueryTool {
         if (!text) return '';
         return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
-
-    // ==================== LLM 推理展示 ====================
     renderLlmReasoning(data) {
         // 元数据
         const metadata = document.getElementById('llmMetadata');
