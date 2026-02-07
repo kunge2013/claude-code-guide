@@ -984,7 +984,6 @@ class SQLQueryTool {
         this.updatedFields = {};
 
         // 解析UPDATE语句，提取SET和WHERE条件
-        // 格式: UPDATE table SET END_DATE = 'value' WHERE ID = 'id'
         const updatePattern = /UPDATE\s+\w+\s+SET\s+(.+?)\s+WHERE\s+(.+?)(?:;|$)/gi;
         const matches = [...sql.matchAll(updatePattern)];
 
@@ -992,40 +991,67 @@ class SQLQueryTool {
             const setClause = match[1];
             const whereClause = match[2];
 
-            // 解析WHERE条件获取ID
+            // 解析WHERE条件获取PROD_INST_ID和ID
+            const prodIdMatch = whereClause.match(/PROD_INST_ID\s*=\s*['"]?(\d+)['"]?/i);
             const idMatch = whereClause.match(/ID\s*=\s*['"]?(\d+)['"]?/i);
-            if (!idMatch) return;
+
+            if (!prodIdMatch || !idMatch) return;
+
+            const prodInstId = prodIdMatch[1];
             const targetId = idMatch[1];
+            const rowKey = `${prodInstId}_${targetId}`;
 
-            // 初始化该ID的字段更新记录
-            this.updatedFields[targetId] = this.updatedFields[targetId] || [];
+            // 初始化该行的字段更新记录
+            this.updatedFields[rowKey] = this.updatedFields[rowKey] || [];
 
-            // 解析SET条件
-            const assignments = setClause.split(',').map(s => s.trim());
-            const targetRow = fixedRows.find(r => String(r.ID) === String(targetId));
+            // 根据PROD_INST_ID和ID找到目标行
+            const targetRow = fixedRows.find(r =>
+                String(r.PROD_INST_ID) === String(prodInstId) &&
+                String(r.ID) === String(targetId)
+            );
 
             if (targetRow) {
+                // 解析SET条件
+                const assignments = setClause.split(',').map(s => s.trim());
+
                 assignments.forEach(assignment => {
                     // 解析 field = 'value' 或 field = value
-                    const fieldMatch = assignment.match(/(\w+)\s*=\s*['"]?([^'"]+)['"]?/i);
-                    if (fieldMatch) {
-                        const field = fieldMatch[1].toUpperCase();
-                        const value = fieldMatch[2];
+                    const fieldMatch = assignment.match(/(\w+)\s*=\s*['"]([^']*)['"]/i);
+                    if (!fieldMatch) {
+                        // 尝试匹配无引号的值
+                        const fieldMatch2 = assignment.match(/(\w+)\s*=\s*(\d+)/i);
+                        if (fieldMatch2) {
+                            const field = fieldMatch2[1].toUpperCase();
+                            const value = fieldMatch2[2];
 
-                        // 更新对应字段
-                        if (field === 'END_DATE') {
-                            targetRow.END_DATE = value;
-                            this.updatedFields[targetId].push('END_DATE');
-                        } else if (field === 'START_DATE') {
-                            targetRow.START_DATE = value;
-                            this.updatedFields[targetId].push('START_DATE');
-                        } else if (field === 'START_FLAG') {
-                            targetRow.START_FLAG = parseInt(value) || 0;
-                            this.updatedFields[targetId].push('START_FLAG');
-                        } else if (field === 'LATEST_FLAG') {
-                            targetRow.LATEST_FLAG = parseInt(value) || 0;
-                            this.updatedFields[targetId].push('LATEST_FLAG');
+                            // 更新对应字段
+                            if (field === 'START_FLAG') {
+                                targetRow.START_FLAG = parseInt(value) || 0;
+                                this.updatedFields[rowKey].push('START_FLAG');
+                            } else if (field === 'LATEST_FLAG') {
+                                targetRow.LATEST_FLAG = parseInt(value) || 0;
+                                this.updatedFields[rowKey].push('LATEST_FLAG');
+                            }
                         }
+                        return;
+                    }
+
+                    const field = fieldMatch[1].toUpperCase();
+                    const value = fieldMatch[2];
+
+                    // 更新对应字段
+                    if (field === 'END_DATE') {
+                        targetRow.END_DATE = value;
+                        this.updatedFields[rowKey].push('END_DATE');
+                    } else if (field === 'START_DATE') {
+                        targetRow.START_DATE = value;
+                        this.updatedFields[rowKey].push('START_DATE');
+                    } else if (field === 'START_FLAG') {
+                        targetRow.START_FLAG = parseInt(value) || 0;
+                        this.updatedFields[rowKey].push('START_FLAG');
+                    } else if (field === 'LATEST_FLAG') {
+                        targetRow.LATEST_FLAG = parseInt(value) || 0;
+                        this.updatedFields[rowKey].push('LATEST_FLAG');
                     }
                 });
             }
@@ -1220,8 +1246,12 @@ class SQLQueryTool {
                 let cellClass = '';
 
                 // 检查是否是SQL更新的字段（紫色高亮）
-                if (updatedFields && updatedFields[row.ID] && updatedFields[row.ID].includes(col)) {
-                    cellClass = 'updated-cell';
+                // 使用 rowKey = PROD_INST_ID_ID
+                if (updatedFields) {
+                    const rowKey = `${row.PROD_INST_ID}_${row.ID}`;
+                    if (updatedFields[rowKey] && updatedFields[rowKey].includes(col)) {
+                        cellClass = 'updated-cell';
+                    }
                 }
                 // Check if this value changed (for fixed data display)
                 else if (showChanges) {
