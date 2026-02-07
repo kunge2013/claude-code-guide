@@ -828,26 +828,25 @@ class SQLQueryTool {
 
     toggleMaximizeSqlModal() {
         const modal = document.getElementById('sqlFixModal');
-        const modalContent = modal.querySelector('.modal-content');
         const maximizeBtn = document.getElementById('maximizeSqlModal');
 
-        if (modalContent.classList.contains('maximized')) {
+        if (modal.classList.contains('maximized')) {
             // 还原
-            modalContent.classList.remove('maximized');
+            modal.classList.remove('maximized');
             maximizeBtn.textContent = '□';
             maximizeBtn.title = '最大化';
         } else {
             // 最大化
-            modalContent.classList.add('maximized');
+            modal.classList.add('maximized');
             maximizeBtn.textContent = '❐';
             maximizeBtn.title = '还原';
         }
     }
 
     resetMaximizeState() {
-        const modalContent = document.getElementById('sqlFixModal').querySelector('.modal-content');
+        const modal = document.getElementById('sqlFixModal');
         const maximizeBtn = document.getElementById('maximizeSqlModal');
-        modalContent.classList.remove('maximized');
+        modal.classList.remove('maximized');
         maximizeBtn.textContent = '□';
         maximizeBtn.title = '最大化';
     }
