@@ -185,8 +185,19 @@
                 <h2>异常数据修复</h2>
                 <button class="close-btn" id="closeSqlModal">&times;</button>
             </div>
+
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="fix">数据修复</button>
+                <button class="tab-btn" data-tab="timeline">时间线</button>
+                <button class="tab-btn" data-tab="llm">大模型推理</button>
+                <button class="tab-btn" data-tab="visualization">修复可视化</button>
+            </div>
+
             <div class="modal-body">
-                <div id="violationInfo"></div>
+                <!-- Tab 1: 数据修复 -->
+                <div class="tab-content active" id="tab-fix">
+                    <div id="violationInfo"></div>
 
                 <div class="section-header">
                     <h3>当前异常数据</h3>
@@ -216,6 +227,40 @@
                     <div id="llmSqlResult" style="display: none;">
                         <button id="copyLlmSqlBtn" class="btn btn-primary sql-copy-btn">复制大模型SQL</button>
                         <pre id="llmSqlStatement"></pre>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Tab 2: 时间线可视化 -->
+                <div class="tab-content" id="tab-timeline">
+                    <div class="timeline-toolbar">
+                        <button class="btn-zoom-out">－</button>
+                        <span class="zoom-level">100%</span>
+                        <button class="btn-zoom-in">＋</button>
+                    </div>
+                    <div class="timeline-container">
+                        <svg class="timeline-gantt" id="timelineSvg"></svg>
+                    </div>
+                    <div class="timeline-legend">
+                        <span class="legend-item"><span class="marker violation"></span> 异常记录</span>
+                        <span class="legend-item"><span class="marker fix"></span> 修复点</span>
+                    </div>
+                </div>
+
+                <!-- Tab 3: 大模型推理 -->
+                <div class="tab-content" id="tab-llm">
+                    <div class="metadata-grid" id="llmMetadata">
+                        <!-- 元数据动态填充 -->
+                    </div>
+                    <div class="prompt-container" id="promptContainer">
+                        <!-- Prompt 内容动态填充 -->
+                    </div>
+                </div>
+
+                <!-- Tab 4: 修复可视化 -->
+                <div class="tab-content" id="tab-visualization">
+                    <div class="fix-steps-list" id="fixStepsList">
+                        <!-- 步骤列表动态填充 -->
                     </div>
                 </div>
             </div>

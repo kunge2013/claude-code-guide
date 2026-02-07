@@ -803,8 +803,20 @@ class SQLQueryTool {
         document.getElementById('generateLlmSqlBtn').disabled = false;
         document.getElementById('generateLlmSqlBtn').innerHTML = '<span class="icon">🤖</span> 生成大模型修复SQL';
 
+        // Clear other tab contents
+        document.getElementById('llmMetadata').innerHTML = '';
+        document.getElementById('promptContainer').innerHTML = '';
+        document.getElementById('fixStepsList').innerHTML = '';
+        document.getElementById('timelineSvg').innerHTML = '';
+
         // Show modal
         document.getElementById('sqlFixModal').classList.add('show');
+
+        // Initialize tabs
+        this.initTabs();
+
+        // Pre-render timeline with current data
+        this.renderTimeline(sortedRows);
     }
 
     closeSqlFixModal() {
@@ -865,6 +877,15 @@ class SQLQueryTool {
                 sqlPre.innerHTML = highlightSQL(data.sql);
                 resultDiv.style.display = 'block';
                 this.setStatus('大模型 SQL 生成成功', 'success');
+
+                // 新增：渲染推理信息
+                this.renderLlmReasoning(data);
+
+                // 新增：渲染修复可视化
+                this.renderFixVisualization(data.sql);
+
+                // 新增：初始化 Tabs
+                this.initTabs();
             } else {
                 alert('生成失败: ' + (data.message || '未知错误'));
                 btn.disabled = false;
@@ -1229,6 +1250,191 @@ class SQLQueryTool {
             });
             tbody.appendChild(tr);
         });
+    }
+
+    // ==================== Tab 管理 ====================
+    initTabs() {
+        const modal = document.getElementById('sqlFixModal');
+        if (!modal) return;
+
+        // Check if tabs are already initialized
+        if (modal._tabsInitialized) return;
+
+        const tabBtns = modal.querySelectorAll('.tab-btn');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                const allBtns = modal.querySelectorAll('.tab-btn');
+                const allContents = modal.querySelectorAll('.tab-content');
+
+                allBtns.forEach(b => b.classList.remove('active'));
+                allContents.forEach(c => c.classList.remove('active'));
+
+                btn.classList.add('active');
+                const contentEl = document.getElementById(`tab-${tabName}`);
+                if (contentEl) {
+                    contentEl.classList.add('active');
+                }
+
+                // Render timeline when switching to timeline tab
+                if (tabName === 'timeline' && this.currentViolationData) {
+                    this.renderTimeline(this.currentViolationData.rows);
+                }
+            });
+        });
+
+        modal._tabsInitialized = true;
+    }
+
+    // ==================== 时间线渲染 ====================
+    renderTimeline(rows) {
+        const svg = document.getElementById('timelineSvg');
+        if (!svg || !rows || rows.length === 0) return;
+
+        // 计算时间范围
+        const dates = rows.flatMap(r => [
+            new Date(r.START_DATE || 0),
+            new Date(r.END_DATE || Date.now())
+        ]);
+        const minDate = new Date(Math.min(...dates));
+        const maxDate = new Date(Math.max(...dates));
+        const timeSpan = maxDate - minDate || 1;
+
+        // SVG 尺寸
+        const width = 800;
+        const barHeight = 40;
+        const barMargin = 10;
+        const height = 60 + rows.length * (barHeight + barMargin);
+
+        let svgContent = `<svg viewBox="0 0 ${width} ${height}" class="timeline-gantt">`;
+
+        // 时间轴
+        svgContent += `<line x1="0" y1="30" x2="${width}" y2="30" stroke="#e2e8f0" stroke-width="2"/>`;
+        for (let i = 0; i <= 5; i++) {
+            const x = (i / 5) * width;
+            const date = new Date(minDate.getTime() + (timeSpan * i / 5));
+            const dateStr = formatDateTime(date.toISOString()).split(' ')[0];
+            svgContent += `<line x1="${x}" y1="20" x2="${x}" y2="${height - 20}" stroke="#e2e8f0" stroke-dasharray="4"/>`;
+            svgContent += `<text x="${x}" y="15" font-size="11" fill="#64748b" text-anchor="middle">${dateStr}</text>`;
+        }
+
+        // 记录条
+        rows.forEach((row, i) => {
+            const y = 50 + i * (barHeight + barMargin);
+            const startDate = new Date(row.START_DATE || 0);
+            const endDate = row.END_DATE ? new Date(row.END_DATE) : maxDate;
+            const x1 = ((startDate - minDate) / timeSpan) * width;
+            const x2 = ((endDate - minDate) / timeSpan) * width;
+            const barWidth = Math.max(x2 - x1, 60);
+
+            // Check if this is a violation row
+            const groupKey = `${row.ACCT_ITEM_TYPE_ID}_${row.PROD_INST_ID}`;
+            const isViolation = this.currentViolationData &&
+                this.currentViolationData.groupKey === groupKey;
+
+            svgContent += `<g class="timeline-bar-group" data-id="${row.ID}">`;
+            svgContent += `<rect class="timeline-bar ${isViolation ? 'violation' : 'normal'}" x="${x1}" y="${y}" width="${barWidth}" height="${barHeight}" rx="6"/>`;
+            svgContent += `<text x="${x1 + 10}" y="${y + 25}" font-size="12" fill="#334155">${row.NAME || row.ID}</text>`;
+            if (isViolation) {
+                svgContent += `<circle cx="${x2}" cy="${y + barHeight / 2}" r="8" fill="#dc2626"/>`;
+            }
+            svgContent += `</g>`;
+        });
+
+        svgContent += '</svg>';
+        svg.innerHTML = svgContent;
+    }
+
+    // ==================== LLM 推理展示 ====================
+    renderLlmReasoning(data) {
+        // 元数据
+        const metadata = document.getElementById('llmMetadata');
+        if (metadata) {
+            metadata.innerHTML = `
+                <div class="metadata-item">
+                    <label>模型</label>
+                    <value>${this.escapeHtml(data.model || '-')}</value>
+                </div>
+                <div class="metadata-item">
+                    <label>提供商</label>
+                    <value>${this.escapeHtml(data.provider || '-')}</value>
+                </div>
+                <div class="metadata-item">
+                    <label>数据行数</label>
+                    <value>${data.debug?.dataRowCount || '-'}</value>
+                </div>
+                <div class="metadata-item">
+                    <label>日志行数</label>
+                    <value>${data.debug?.logRowCount || '-'}</value>
+                </div>
+            `;
+        }
+
+        // Prompt 展示
+        if (data.debug?.prompt) {
+            const container = document.getElementById('promptContainer');
+            if (container) {
+                const promptPreview = data.debug.prompt.substring(0, 500) + (data.debug.prompt.length > 500 ? '...' : '');
+                container.innerHTML = `
+                    <div class="prompt-section">
+                        <div class="section-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+                            <strong>完整 Prompt</strong>
+                            <button class="toggle-btn">▼</button>
+                        </div>
+                        <div class="section-content collapsed">
+                            <pre class="sql-content">${this.escapeHtml(data.debug.prompt)}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // ==================== 修复可视化 ====================
+    renderFixVisualization(sql) {
+        const stepsList = document.getElementById('fixStepsList');
+        if (!stepsList) return;
+
+        // 解析 SQL 语句
+        const statements = sql.match(/UPDATE.*?;/gis) || [];
+
+        let stepsHtml = '';
+        statements.forEach((stmt, i) => {
+            const match = stmt.match(/UPDATE\s+(\w+)\s+SET\s+(.+?)\s+WHERE/i);
+            if (match) {
+                const [, table, sets] = match;
+                const fields = sets.split(',').map(s => {
+                    const [f, v] = s.split('=').map(x => x.trim().replace(/^['"]|['"]$/g, ''));
+                    return `<span class="field-badge">${this.escapeHtml(f)} ← ${this.escapeHtml(v)}</span>`;
+                }).join('');
+
+                const isLast = i === statements.length - 1;
+                stepsHtml += `
+                    <div class="fix-step-item">
+                        <div class="step-indicator">
+                            <span class="step-number">${i + 1}</span>
+                            ${!isLast ? '<div class="step-connector"></div>' : ''}
+                        </div>
+                        <div class="step-detail">
+                            <div><strong>更新</strong> ${this.escapeHtml(table)}</div>
+                            <div style="margin-top: 8px;">${fields}</div>
+                            <pre class="sql-content" style="margin-top: 8px;">${this.escapeHtml(stmt.trim())}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        stepsList.innerHTML = stepsHtml || '<p style="color: var(--text-secondary);">未找到修复步骤</p>';
+    }
+
+    // ==================== 工具方法 ====================
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 
