@@ -1292,58 +1292,199 @@ class SQLQueryTool {
         const svg = document.getElementById('timelineSvg');
         if (!svg || !rows || rows.length === 0) return;
 
-        // 计算时间范围
-        const dates = rows.flatMap(r => [
-            new Date(r.START_DATE || 0),
-            new Date(r.END_DATE || Date.now())
-        ]);
+        // 计算时间范围 - 按天为单位
+        const dates = rows.flatMap(r => {
+            const datesList = [new Date(r.START_DATE || 0)];
+            if (r.END_DATE) {
+                datesList.push(new Date(r.END_DATE));
+            }
+            return datesList;
+        });
         const minDate = new Date(Math.min(...dates));
+        minDate.setHours(0, 0, 0, 0);
         const maxDate = new Date(Math.max(...dates));
-        const timeSpan = maxDate - minDate || 1;
+        maxDate.setHours(23, 59, 59, 999);
 
-        // SVG 尺寸
-        const width = 800;
-        const barHeight = 40;
-        const barMargin = 10;
-        const height = 60 + rows.length * (barHeight + barMargin);
+        // 计算天数
+        const dayMs = 24 * 60 * 60 * 1000;
+        const totalDays = Math.max(1, Math.ceil((maxDate - minDate) / dayMs));
+
+        // 配置
+        const dayWidth = 60; // 每天的宽度
+        const rowHeight = 70; // 每行的高度
+        const headerHeight = 80; // 头部高度
+        const width = Math.max(800, totalDays * dayWidth + 100);
+        const height = headerHeight + rows.length * rowHeight + 60;
 
         let svgContent = `<svg viewBox="0 0 ${width} ${height}" class="timeline-gantt">`;
 
-        // 时间轴
-        svgContent += `<line x1="0" y1="30" x2="${width}" y2="30" stroke="#e2e8f0" stroke-width="2"/>`;
-        for (let i = 0; i <= 5; i++) {
-            const x = (i / 5) * width;
-            const date = new Date(minDate.getTime() + (timeSpan * i / 5));
-            const dateStr = formatDateTime(date.toISOString()).split(' ')[0];
-            svgContent += `<line x1="${x}" y1="20" x2="${x}" y2="${height - 20}" stroke="#e2e8f0" stroke-dasharray="4"/>`;
-            svgContent += `<text x="${x}" y="15" font-size="11" fill="#64748b" text-anchor="middle">${dateStr}</text>`;
+        // 样式定义
+        svgContent += `
+            <defs>
+                <style>
+                    .timeline-date { font-size: 10px; fill: #64748b; text-anchor: middle; }
+                    .timeline-date-weekend { fill: #94a3b8; font-weight: 600; }
+                    .timeline-grid-line { stroke: #e2e8f0; stroke-width: 1; }
+                    .timeline-grid-line-weekend { stroke: #cbd5e1; stroke-dasharray: 4,2; }
+                    .timeline-row-bg { fill: #f8fafc; }
+                    .timeline-row-bg-alt { fill: #ffffff; }
+                    .timeline-bar { cursor: pointer; transition: all 0.2s; }
+                    .timeline-bar:hover { filter: brightness(0.95); }
+                    .timeline-bar-normal { fill: #dbeafe; stroke: #3b82f6; stroke-width: 1.5; }
+                    .timeline-bar-violation { fill: #fee2e2; stroke: #dc2626; stroke-width: 2; }
+                    .timeline-bar-fix { fill: #dcfce7; stroke: #22c55e; stroke-width: 1.5; }
+                    .timeline-text { font-size: 11px; fill: #334155; }
+                    .timeline-text-small { font-size: 9px; fill: #64748b; }
+                    .timeline-marker { fill: #dc2626; stroke: #fff; stroke-width: 2; }
+                    .timeline-fix-line { stroke: #22c55e; stroke-width: 2; stroke-dasharray: 4,4; }
+                </style>
+            </defs>
+        `;
+
+        // 背景
+        svgContent += `<rect width="${width}" height="${height}" fill="#ffffff"/>`;
+
+        // 绘制日期网格
+        for (let day = 0; day <= totalDays; day++) {
+            const x = 100 + day * dayWidth;
+            const currentDate = new Date(minDate.getTime() + day * dayMs);
+            const dateStr = `${currentDate.getMonth() + 1}/${currentDate.getDate()}`;
+            const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+
+            // 垂直网格线
+            svgContent += `<line x1="${x}" y1="${headerHeight}" x2="${x}" y2="${height - 50}" class="timeline-grid-line ${isWeekend ? 'timeline-grid-line-weekend' : ''}"/>`;
+
+            // 日期标签
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            const weekDay = weekDays[currentDate.getDay()];
+            svgContent += `<text x="${x + dayWidth / 2}" y="${headerHeight - 50}" class="timeline-date ${isWeekend ? 'timeline-date-weekend' : ''}">${dateStr}</text>`;
+            svgContent += `<text x="${x + dayWidth / 2}" y="${headerHeight - 35}" class="timeline-date ${isWeekend ? 'timeline-date-weekend' : ''}" font-weight="600">${weekDay}</text>`;
         }
 
-        // 记录条
-        rows.forEach((row, i) => {
-            const y = 50 + i * (barHeight + barMargin);
-            const startDate = new Date(row.START_DATE || 0);
-            const endDate = row.END_DATE ? new Date(row.END_DATE) : maxDate;
-            const x1 = ((startDate - minDate) / timeSpan) * width;
-            const x2 = ((endDate - minDate) / timeSpan) * width;
-            const barWidth = Math.max(x2 - x1, 60);
+        // 获取违规信息
+        const groupKey = this.currentViolationData?.groupKey || '';
+        const violationData = this.currentViolationData;
 
-            // Check if this is a violation row
-            const groupKey = `${row.ACCT_ITEM_TYPE_ID}_${row.PROD_INST_ID}`;
-            const isViolation = this.currentViolationData &&
-                this.currentViolationData.groupKey === groupKey;
+        // 绘制每一行数据
+        rows.forEach((row, rowIndex) => {
+            const y = headerHeight + rowIndex * rowHeight;
 
-            svgContent += `<g class="timeline-bar-group" data-id="${row.ID}">`;
-            svgContent += `<rect class="timeline-bar ${isViolation ? 'violation' : 'normal'}" x="${x1}" y="${y}" width="${barWidth}" height="${barHeight}" rx="6"/>`;
-            svgContent += `<text x="${x1 + 10}" y="${y + 25}" font-size="12" fill="#334155">${row.NAME || row.ID}</text>`;
-            if (isViolation) {
-                svgContent += `<circle cx="${x2}" cy="${y + barHeight / 2}" r="8" fill="#dc2626"/>`;
+            // 行背景
+            svgContent += `<rect x="0" y="${y}" width="${width}" height="${rowHeight - 4}" class="timeline-row-bg ${rowIndex % 2 === 0 ? '' : 'timeline-row-bg-alt'}"/>`;
+
+            // 行标签
+            svgContent += `<text x="10" y="${y + 25}" class="timeline-text" font-weight="600">${this.truncateText(row.NAME || `记录${row.ID}`, 12)}</text>`;
+            svgContent += `<text x="10" y="${y + 42}" class="timeline-text-small">ID: ${row.ID}</text>`;
+
+            // 标记特殊状态
+            let statusText = '';
+            let statusColor = '#94a3b8';
+            if (row.START_FLAG == 1) {
+                statusText = '首';
+                statusColor = '#3b82f6';
             }
+            if (row.LATEST_FLAG == 1) {
+                statusText = statusText ? '首/末' : '末';
+                statusColor = '#22c55e';
+            }
+            if (statusText) {
+                svgContent += `<rect x="10" y="${y + 50}" width="24" height="14" rx="3" fill="${statusColor}"/>`;
+                svgContent += `<text x="22" y="${y + 61}" font-size="9" fill="white" text-anchor="middle" font-weight="600">${statusText}</text>`;
+            }
+
+            // 计算记录的时间条
+            const startDate = new Date(row.START_DATE || 0);
+            const endDate = row.END_DATE ? new Date(row.END_DATE) : new Date(maxDate.getTime() + dayMs);
+
+            const startOffsetDays = Math.floor((startDate - minDate) / dayMs);
+            const durationDays = Math.max(1, Math.ceil((endDate - startDate) / dayMs));
+
+            const barX = 100 + startOffsetDays * dayWidth;
+            const barY = y + 10;
+            const barWidth = durationDays * dayWidth - 4;
+            const barHeight_inner = rowHeight - 30;
+
+            // 判断是否是违规行
+            const rowGroupKey = `${row.ACCT_ITEM_TYPE_ID}_${row.PROD_INST_ID}`;
+            const isViolation = violationData && rowGroupKey === groupKey;
+
+            // 绘制时间条
+            svgContent += `
+                <g class="timeline-bar-group" data-id="${row.ID}">
+                    <rect class="timeline-bar ${isViolation ? 'timeline-bar-violation' : 'timeline-bar-normal'}"
+                          x="${barX}" y="${barY}" width="${barWidth}" height="${barHeight_inner}" rx="4"/>
+            `;
+
+            // 在时间条内显示起止日期
+            const startDateStr = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+            const endDateStr = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
+            svgContent += `<text x="${barX + 8}" y="${barY + 18}" class="timeline-text" font-size="10">${startDateStr} - ${endDateStr}</text>`;
+
+            // 显示关键字段值
+            const fieldsToShow = [
+                { label: '资费', value: row.ACCT_ITEM_TYPE_ID },
+                { label: '实例', value: row.PROD_INST_ID },
+            ];
+            let fieldY = barY + 34;
+            fieldsToShow.forEach(f => {
+                if (f.value) {
+                    svgContent += `<text x="${barX + 8}" y="${fieldY}" class="timeline-text-small">${f.label}: ${f.value}</text>`;
+                    fieldY += 12;
+                }
+            });
+
+            // 违规标记
+            if (isViolation) {
+                // 在结束位置添加红色标记
+                const markerX = barX + barWidth - 8;
+                const markerY = barY + barHeight_inner / 2;
+                svgContent += `<circle class="timeline-marker" cx="${markerX}" cy="${markerY}" r="8"/>`;
+                svgContent += `<text x="${markerX}" y="${markerY + 3}" font-size="10" fill="white" text-anchor="middle" font-weight="600">!</text>`;
+
+                // 如果有修复建议，显示修复线
+                if (violationData && violationData.fixSuggestion) {
+                    const fixX = markerX + 20;
+                    svgContent += `<line x1="${markerX + 8}" y1="${markerY}" x2="${fixX}" y2="${markerY}" class="timeline-fix-line"/>`;
+                    svgContent += `<circle cx="${fixX}" cy="${markerY}" r="6" fill="#22c55e" stroke="white" stroke-width="2"/>`;
+                    svgContent += `<text x="${fixX}" y="${markerY + 3}" font-size="9" fill="white" text-anchor="middle">✓</text>`;
+                }
+            }
+
             svgContent += `</g>`;
         });
 
+        // 图例
+        const legendY = height - 35;
+        svgContent += `
+            <g transform="translate(100, ${legendY})">
+                <rect x="0" y="0" width="20" height="12" rx="3" class="timeline-bar-normal"/>
+                <text x="25" y="10" class="timeline-text">正常记录</text>
+
+                <rect x="100" y="0" width="20" height="12" rx="3" class="timeline-bar-violation"/>
+                <text x="125" y="10" class="timeline-text">违规记录</text>
+
+                <circle cx="210" cy="6" r="6" class="timeline-marker"/>
+                <text x="220" y="10" class="timeline-text">违规点</text>
+
+                <circle cx="290" cy="6" r="5" fill="#22c55e" stroke="white" stroke-width="2"/>
+                <text x="300" y="10" class="timeline-text">修复建议</text>
+
+                <rect x="390" y="0" width="20" height="12" rx="3" fill="#3b82f6"/>
+                <text x="415" y="10" class="timeline-text">首条</text>
+
+                <rect x="470" y="0" width="20" height="12" rx="3" fill="#22c55e"/>
+                <text x="495" y="10" class="timeline-text">末条</text>
+            </g>
+        `;
+
         svgContent += '</svg>';
         svg.innerHTML = svgContent;
+    }
+
+    // 工具方法：截断文本
+    truncateText(text, maxLength) {
+        if (!text) return '';
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
 
     // ==================== LLM 推理展示 ====================
