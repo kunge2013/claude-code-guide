@@ -805,10 +805,20 @@ class SQLQueryTool {
         document.getElementById('generateLlmSqlBtn').innerHTML = '<span class="icon">🤖</span> 生成大模型修复SQL';
 
         // Clear other tab contents
-        document.getElementById('llmMetadata').innerHTML = '';
-        document.getElementById('promptContainer').innerHTML = '';
-        document.getElementById('fixStepsList').innerHTML = '';
-        document.getElementById('timelineSvg').innerHTML = '';
+        const llmMetadata = document.getElementById('llmMetadata');
+        const promptContainer = document.getElementById('promptContainer');
+        const fixStepsList = document.getElementById('fixStepsList');
+        if (llmMetadata) llmMetadata.innerHTML = '';
+        if (promptContainer) promptContainer.innerHTML = '';
+        if (fixStepsList) fixStepsList.innerHTML = '';
+
+        // Clear comparison tables
+        const beforeTableBody = document.querySelector('#beforeTable tbody');
+        const afterTableBody = document.querySelector('#afterTable tbody');
+        const changeList = document.getElementById('changeList');
+        if (beforeTableBody) beforeTableBody.innerHTML = '';
+        if (afterTableBody) afterTableBody.innerHTML = '';
+        if (changeList) changeList.innerHTML = '';
 
         // Show modal
         document.getElementById('sqlFixModal').classList.add('show');
