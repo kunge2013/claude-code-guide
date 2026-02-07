@@ -830,27 +830,16 @@ class SQLQueryTool {
         const modal = document.getElementById('sqlFixModal');
         const maximizeBtn = document.getElementById('maximizeSqlModal');
 
-        // 检查当前是否在时间线tab
-        const isTimelineTab = modal.querySelector('.tab-btn[data-tab="timeline"]')?.classList.contains('active');
-
         if (modal.classList.contains('maximized')) {
             // 还原
             modal.classList.remove('maximized');
             maximizeBtn.textContent = '□';
             maximizeBtn.title = '最大化';
-            // 延迟重新渲染时间线，等待CSS过渡完成
-            if (isTimelineTab && this.currentViolationData) {
-                setTimeout(() => this.renderTimeline(this.currentViolationData.rows), 300);
-            }
         } else {
             // 最大化
             modal.classList.add('maximized');
             maximizeBtn.textContent = '❐';
             maximizeBtn.title = '还原';
-            // 延迟重新渲染时间线，等待CSS过渡完成
-            if (isTimelineTab && this.currentViolationData) {
-                setTimeout(() => this.renderTimeline(this.currentViolationData.rows), 300);
-            }
         }
     }
 
@@ -1331,10 +1320,6 @@ class SQLQueryTool {
         const svg = document.getElementById('timelineSvg');
         if (!svg || !originalRows || originalRows.length === 0) return;
 
-        // 获取容器实际宽度
-        const container = svg.closest('.tab-content') || svg.parentElement;
-        const containerWidth = container.clientWidth - 48; // 减去padding
-
         // 获取修复后的数据
         const fixedRows = this.currentViolationData?.fixedRows || null;
         const hasChanges = fixedRows && this.hasDataChanged(originalRows, fixedRows);
@@ -1354,15 +1339,14 @@ class SQLQueryTool {
         const yearMs = 365 * 24 * 60 * 60 * 1000;
         const totalYears = Math.max(8, Math.ceil((maxDate - minDate) / yearMs) + 1);
 
-        // 配置 - 根据容器宽度动态调整
-        const labelWidth = 180;
-        const availableWidth = containerWidth - labelWidth - 50;
-        const yearWidth = Math.max(80, Math.floor(availableWidth / totalYears));
+        // 配置 - 使用固定大宽度，通过CSS自适应
+        const labelWidth = 200;
+        const yearWidth = 150;  // 每年的固定宽度
         const rowHeight = 70;
         const rowGap = 10;
         const headerHeight = 80;
         const sectionGap = hasChanges ? 50 : 0;
-        const width = Math.max(containerWidth, labelWidth + totalYears * yearWidth + 50);
+        const width = labelWidth + totalYears * yearWidth + 100;
         const section1Height = originalRows.length * (rowHeight + rowGap);
         const section2Height = hasChanges && fixedRows ? fixedRows.length * (rowHeight + rowGap) : 0;
         const height = headerHeight + section1Height + sectionGap + section2Height + 70;
