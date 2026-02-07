@@ -211,6 +211,7 @@ class SQLQueryTool {
         // SQL Fix modal
         document.getElementById('closeSqlModal').addEventListener('click', () => this.closeSqlFixModal());
         document.getElementById('closeSqlModalBtn').addEventListener('click', () => this.closeSqlFixModal());
+        document.getElementById('maximizeSqlModal').addEventListener('click', () => this.toggleMaximizeSqlModal());
         document.getElementById('copySqlBtn').addEventListener('click', () => this.copyFixSql());
 
         // LLM SQL generation
@@ -821,6 +822,34 @@ class SQLQueryTool {
 
     closeSqlFixModal() {
         document.getElementById('sqlFixModal').classList.remove('show');
+        // 关闭时重置最大化状态
+        this.resetMaximizeState();
+    }
+
+    toggleMaximizeSqlModal() {
+        const modal = document.getElementById('sqlFixModal');
+        const modalContent = modal.querySelector('.modal-content');
+        const maximizeBtn = document.getElementById('maximizeSqlModal');
+
+        if (modalContent.classList.contains('maximized')) {
+            // 还原
+            modalContent.classList.remove('maximized');
+            maximizeBtn.textContent = '□';
+            maximizeBtn.title = '最大化';
+        } else {
+            // 最大化
+            modalContent.classList.add('maximized');
+            maximizeBtn.textContent = '❐';
+            maximizeBtn.title = '还原';
+        }
+    }
+
+    resetMaximizeState() {
+        const modalContent = document.getElementById('sqlFixModal').querySelector('.modal-content');
+        const maximizeBtn = document.getElementById('maximizeSqlModal');
+        modalContent.classList.remove('maximized');
+        maximizeBtn.textContent = '□';
+        maximizeBtn.title = '最大化';
     }
 
     copyFixSql() {
