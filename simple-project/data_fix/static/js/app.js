@@ -922,6 +922,12 @@ class SQLQueryTool {
                 // 新增：渲染修复可视化
                 this.renderFixVisualization(data.sql);
 
+                // 解析SQL更新fixedRows
+                this.parseAndUpdateFixedRows(data.sql);
+
+                // 刷新修复对比表格
+                this.renderTimeline(this.currentViolationData.rows);
+
                 // 新增：初始化 Tabs
                 this.initTabs();
             } else {
@@ -962,6 +968,58 @@ class SQLQueryTool {
         }).catch(err => {
             this.setStatus('复制失败', 'error');
         });
+    }
+
+    // 解析UPDATE语句并更新fixedRows
+    parseAndUpdateFixedRows(sql) {
+        if (!this.currentViolationData || !sql) return;
+
+        const originalRows = this.currentViolationData.rows;
+        const fixedRows = JSON.parse(JSON.stringify(originalRows)); // 深拷贝
+
+        // 解析UPDATE语句，提取SET和WHERE条件
+        // 格式: UPDATE table SET END_DATE = 'value' WHERE ID = 'id'
+        const updatePattern = /UPDATE\s+\w+\s+SET\s+(.+?)\s+WHERE\s+(.+?)(?:;|$)/gi;
+        const matches = [...sql.matchAll(updatePattern)];
+
+        matches.forEach(match => {
+            const setClause = match[1];
+            const whereClause = match[2];
+
+            // 解析WHERE条件获取ID
+            const idMatch = whereClause.match(/ID\s*=\s*['"]?(\d+)['"]?/i);
+            if (!idMatch) return;
+            const targetId = idMatch[1];
+
+            // 解析SET条件
+            const assignments = setClause.split(',').map(s => s.trim());
+            const targetRow = fixedRows.find(r => String(r.ID) === String(targetId));
+
+            if (targetRow) {
+                assignments.forEach(assignment => {
+                    // 解析 field = 'value' 或 field = value
+                    const fieldMatch = assignment.match(/(\w+)\s*=\s*['"]?([^'"]+)['"]?/i);
+                    if (fieldMatch) {
+                        const field = fieldMatch[1].toUpperCase();
+                        const value = fieldMatch[2];
+
+                        // 更新对应字段
+                        if (field === 'END_DATE') {
+                            targetRow.END_DATE = value;
+                        } else if (field === 'START_DATE') {
+                            targetRow.START_DATE = value;
+                        } else if (field === 'START_FLAG') {
+                            targetRow.START_FLAG = parseInt(value) || 0;
+                        } else if (field === 'LATEST_FLAG') {
+                            targetRow.LATEST_FLAG = parseInt(value) || 0;
+                        }
+                    }
+                });
+            }
+        });
+
+        // 更新currentViolationData的fixedRows
+        this.currentViolationData.fixedRows = fixedRows;
     }
 
     analyzeViolation(rows) {
