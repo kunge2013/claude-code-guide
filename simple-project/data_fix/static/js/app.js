@@ -925,6 +925,9 @@ class SQLQueryTool {
                 // 解析SQL更新fixedRows
                 this.parseAndUpdateFixedRows(data.sql);
 
+                // 更新"修复后的数据"表格
+                this.updateFixedDataTable();
+
                 // 刷新修复对比表格
                 this.renderTimeline(this.currentViolationData.rows);
 
@@ -1020,6 +1023,17 @@ class SQLQueryTool {
 
         // 更新currentViolationData的fixedRows
         this.currentViolationData.fixedRows = fixedRows;
+    }
+
+    // 更新"修复后的数据"表格
+    updateFixedDataTable() {
+        if (!this.currentViolationData || !this.currentViolationData.fixedRows) return;
+
+        const fixedDataDiv = document.getElementById('fixedData');
+        if (fixedDataDiv) {
+            fixedDataDiv.innerHTML = this.createDataTable(this.currentViolationData.fixedRows, true);
+            fixedDataDiv.style.cssText = 'margin-bottom: 20px; padding: 12px; background-color: #dcfce7; border-radius: 6px;';
+        }
     }
 
     analyzeViolation(rows) {
