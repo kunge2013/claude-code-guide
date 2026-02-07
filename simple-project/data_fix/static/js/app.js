@@ -1351,7 +1351,7 @@ class SQLQueryTool {
         const section2Height = hasChanges && fixedRows ? fixedRows.length * (rowHeight + rowGap) : 0;
         const height = headerHeight + section1Height + sectionGap + section2Height + 70;
 
-        let svgContent = `<svg viewBox="0 0 ${width} ${height}" class="timeline-gantt">`;
+        let svgContent = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" class="timeline-gantt">`;
 
         // 样式定义
         svgContent += `
