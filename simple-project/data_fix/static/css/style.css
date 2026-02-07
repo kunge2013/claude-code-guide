@@ -1014,12 +1014,25 @@ body {
     overflow-x: auto;
     background-color: #ffffff;
     border-radius: 8px;
+    width: 100%;
 }
 
 .timeline-gantt {
-    min-width: 100%;
+    width: 100%;
+    height: auto;
     display: block;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* 最大化时时间线自适应 */
+.modal.maximized .timeline-container {
+    flex: 1;
+    overflow: hidden;
+}
+
+.modal.maximized .timeline-gantt {
+    width: 100%;
+    height: 100%;
 }
 
 /* 时间线条样式 - SVG内联样式处理，这里保留备用 */
