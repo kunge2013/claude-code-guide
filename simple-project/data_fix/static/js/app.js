@@ -980,6 +980,9 @@ class SQLQueryTool {
         const originalRows = this.currentViolationData.rows;
         const fixedRows = JSON.parse(JSON.stringify(originalRows)); // 深拷贝
 
+        // 记录被更新的字段：{ ID: [field1, field2, ...] }
+        this.updatedFields = {};
+
         // 解析UPDATE语句，提取SET和WHERE条件
         // 格式: UPDATE table SET END_DATE = 'value' WHERE ID = 'id'
         const updatePattern = /UPDATE\s+\w+\s+SET\s+(.+?)\s+WHERE\s+(.+?)(?:;|$)/gi;
@@ -993,6 +996,9 @@ class SQLQueryTool {
             const idMatch = whereClause.match(/ID\s*=\s*['"]?(\d+)['"]?/i);
             if (!idMatch) return;
             const targetId = idMatch[1];
+
+            // 初始化该ID的字段更新记录
+            this.updatedFields[targetId] = this.updatedFields[targetId] || [];
 
             // 解析SET条件
             const assignments = setClause.split(',').map(s => s.trim());
@@ -1009,12 +1015,16 @@ class SQLQueryTool {
                         // 更新对应字段
                         if (field === 'END_DATE') {
                             targetRow.END_DATE = value;
+                            this.updatedFields[targetId].push('END_DATE');
                         } else if (field === 'START_DATE') {
                             targetRow.START_DATE = value;
+                            this.updatedFields[targetId].push('START_DATE');
                         } else if (field === 'START_FLAG') {
                             targetRow.START_FLAG = parseInt(value) || 0;
+                            this.updatedFields[targetId].push('START_FLAG');
                         } else if (field === 'LATEST_FLAG') {
                             targetRow.LATEST_FLAG = parseInt(value) || 0;
+                            this.updatedFields[targetId].push('LATEST_FLAG');
                         }
                     }
                 });
@@ -1031,7 +1041,12 @@ class SQLQueryTool {
 
         const fixedDataDiv = document.getElementById('fixedData');
         if (fixedDataDiv) {
-            fixedDataDiv.innerHTML = this.createDataTable(this.currentViolationData.fixedRows, true);
+            // 传递updatedFields信息
+            fixedDataDiv.innerHTML = this.createDataTable(
+                this.currentViolationData.fixedRows,
+                false,
+                this.updatedFields
+            );
             fixedDataDiv.style.cssText = 'margin-bottom: 20px; padding: 12px; background-color: #dcfce7; border-radius: 6px;';
         }
     }
@@ -1185,7 +1200,7 @@ class SQLQueryTool {
         };
     }
 
-    createDataTable(rows, showChanges = false) {
+    createDataTable(rows, showChanges = false, updatedFields = null) {
         if (!rows || rows.length === 0) return '<p>无数据</p>';
 
         const columns = ['ACCT_ITEM_TYPE_ID', 'ID', 'PROD_INST_ID', 'NAME', 'START_DATE', 'END_DATE', 'START_FLAG', 'LATEST_FLAG'];
@@ -1204,8 +1219,12 @@ class SQLQueryTool {
                 const value = row[col];
                 let cellClass = '';
 
+                // 检查是否是SQL更新的字段（紫色高亮）
+                if (updatedFields && updatedFields[row.ID] && updatedFields[row.ID].includes(col)) {
+                    cellClass = 'updated-cell';
+                }
                 // Check if this value changed (for fixed data display)
-                if (showChanges) {
+                else if (showChanges) {
                     const originalRow = originalRows.find(r => r.ID === row.ID);
                     if (originalRow && originalRow[col] !== value) {
                         cellClass = 'changed-cell';

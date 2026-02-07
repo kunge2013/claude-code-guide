@@ -368,6 +368,20 @@ body {
     font-weight: bold;
 }
 
+/* SQL更新的字段 - 紫色高亮 */
+.data-table .updated-cell {
+    background-color: #e9d5ff;
+    font-weight: 600;
+    color: #7c3aed;
+    position: relative;
+}
+
+.data-table .updated-cell::before {
+    content: '✓ ';
+    color: #7c3aed;
+    font-weight: bold;
+}
+
 /* Context Menu */
 .context-menu {
     position: fixed;
