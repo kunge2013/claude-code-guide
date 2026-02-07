@@ -587,25 +587,25 @@ body {
 
 /* 最大化状态 */
 .modal.maximized {
-    padding: 0;
-    align-items: flex-start;
-    justify-content: flex-start;
+    padding: 0 !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
 }
 
 .modal.maximized .modal-content {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 100vh;
-    max-width: none;
-    max-height: none;
-    margin: 0;
-    border-radius: 0;
-    display: flex;
-    flex-direction: column;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .modal.maximized .modal-content .modal-header {
@@ -619,7 +619,8 @@ body {
 .modal.maximized .modal-content .modal-body {
     flex: 1;
     overflow-y: auto;
-    max-height: none;
+    max-height: none !important;
+    height: auto !important;
 }
 
 .modal.maximized .modal-content .modal-footer {
