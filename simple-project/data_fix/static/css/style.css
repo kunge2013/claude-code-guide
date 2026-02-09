@@ -139,16 +139,16 @@ body {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Results Section - Two Column Layout (Instance Info in drawer) */
+/* Results Section - Single Column Layout (Instance Info and Change Log in drawers) */
 .results-section {
     display: grid;
-    grid-template-columns: 3fr 1fr; /* Change Record (75%), Change Log (25%) */
+    grid-template-columns: 1fr; /* Full width for Change Record */
     gap: 20px;
 }
 
-/* Special styling for Change Record wide column */
+/* Special styling for Change Record full width column */
 .change-record-wide {
-    /* Takes 65% of total width (13fr out of 20fr total) */
+    /* Takes 100% width */
 }
 
 .result-column {
@@ -701,26 +701,64 @@ body {
     }
 }
 
-/* Instance Info Drawer */
-.drawer-toggle {
+/* Drawer Toggle Buttons */
+.drawer-toggles {
     position: fixed;
     left: 20px;
     bottom: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10002; /* 高于模态框和抽屉 */
+}
+
+.drawer-toggle {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background-color: var(--primary-color);
+    background-color: var(--secondary-color);
     color: white;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    z-index: 999;
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
     transition: all 0.3s;
 }
 
 .drawer-toggle:hover {
-    background-color: var(--primary-hover);
     transform: scale(1.1);
+}
+
+.drawer-toggle.active {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.instance-toggle {
+    background-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.instance-toggle:hover {
+    background-color: var(--primary-hover);
+}
+
+.instance-toggle.active {
+    background-color: var(--primary-hover);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+}
+
+.changelog-toggle {
+    background-color: #22c55e;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.changelog-toggle:hover {
+    background-color: #16a34a;
+}
+
+.changelog-toggle.active {
+    background-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5);
 }
 
 .drawer-toggle .icon {
@@ -735,7 +773,7 @@ body {
     height: 100%;
     background-color: var(--surface-color);
     box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+    z-index: 10001; /* 高于模态框(1000)，但低于按钮(10002) */
     transition: right 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
@@ -834,10 +872,13 @@ body {
     max-height: 85vh;
     display: flex;
     flex-direction: column;
+    position: relative; /* 允许拖动时定位 */
 }
 
 #sqlFixModal .modal-header {
     flex-shrink: 0;
+    cursor: move; /* 鼠标悬停时显示移动光标 */
+    user-select: none; /* 防止拖动时选中文字 */
 }
 
 #sqlFixModal .modal-body {

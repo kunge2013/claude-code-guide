@@ -222,12 +222,8 @@ class SQLQueryTool {
         document.getElementById('debugLlmBtn').addEventListener('click', () => this.debugLlmWithPrompt());
         document.getElementById('copyDebugSqlBtn').addEventListener('click', () => this.copyDebugSql());
 
-        // Close SQL modal on outside click
-        document.getElementById('sqlFixModal').addEventListener('click', (e) => {
-            if (e.target.id === 'sqlFixModal') {
-                this.closeSqlFixModal();
-            }
-        });
+        // Note: SQL Fix modal 只能通过关闭按钮关闭，不支持点击外部关闭
+        // 这样可以防止意外点击表格时关闭模态框
 
         // Context menu
         document.getElementById('generateSqlMenuItem').addEventListener('click', (e) => {
@@ -248,15 +244,15 @@ class SQLQueryTool {
             }
         });
 
-        // ATTR_NAME filter for Change Log
-        document.getElementById('attrNameFilter').addEventListener('change', (e) => {
+        // ATTR_NAME filter for Change Log (in drawer)
+        document.getElementById('attrNameFilterDrawer').addEventListener('input', (e) => {
             const trimmedValue = e.target.value.trim();
             e.target.value = trimmedValue; // Update input with trimmed value
             this.filterChangeLog(trimmedValue);
         });
 
         // Allow Enter key to trigger filter
-        document.getElementById('attrNameFilter').addEventListener('keypress', (e) => {
+        document.getElementById('attrNameFilterDrawer').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const trimmedValue = e.target.value.trim();
                 e.target.value = trimmedValue;
@@ -264,9 +260,11 @@ class SQLQueryTool {
             }
         });
 
-        // Drawer toggle
-        document.getElementById('drawerToggle').addEventListener('click', () => this.toggleDrawer());
-        document.getElementById('closeDrawer').addEventListener('click', () => this.closeDrawer());
+        // Drawer toggles
+        document.getElementById('instanceDrawerToggle').addEventListener('click', () => this.openInstanceDrawer());
+        document.getElementById('changeLogDrawerToggle').addEventListener('click', () => this.openChangeLogDrawer());
+        document.getElementById('closeInstanceDrawer').addEventListener('click', () => this.closeAllDrawers());
+        document.getElementById('closeChangeLogDrawer').addEventListener('click', () => this.closeAllDrawers());
     }
 
     setStatus(message, type = '') {
@@ -372,6 +370,12 @@ class SQLQueryTool {
         // Handle instance-info specially - display in drawer
         if (type === 'instance-info') {
             this.displayInstanceInfo(data, sql);
+            return;
+        }
+
+        // Handle change-log specially - display in drawer
+        if (type === 'change-log') {
+            this.displayChangeLogInDrawer(data, sql);
             return;
         }
 
@@ -830,6 +834,9 @@ class SQLQueryTool {
         // Initialize tabs
         this.initTabs();
 
+        // Initialize drag functionality
+        this.initModalDrag();
+
         // Pre-render timeline with current data
         this.renderTimeline(sortedRows);
     }
@@ -838,6 +845,8 @@ class SQLQueryTool {
         document.getElementById('sqlFixModal').classList.remove('show');
         // 关闭时重置最大化状态
         this.resetMaximizeState();
+        // 重置拖动位置
+        this.resetModalPosition();
     }
 
     toggleMaximizeSqlModal() {
@@ -850,6 +859,8 @@ class SQLQueryTool {
             maximizeBtn.textContent = '□';
             maximizeBtn.title = '最大化';
         } else {
+            // 最大化前先重置位置
+            this.resetModalPosition();
             // 最大化
             modal.classList.add('maximized');
             maximizeBtn.textContent = '❐';
@@ -863,6 +874,63 @@ class SQLQueryTool {
         modal.classList.remove('maximized');
         maximizeBtn.textContent = '□';
         maximizeBtn.title = '最大化';
+    }
+
+    // ==================== 模态框拖动功能 ====================
+    initModalDrag() {
+        const modal = document.getElementById('sqlFixModal');
+        const modalContent = modal.querySelector('.modal-content');
+        const modalHeader = modal.querySelector('.modal-header');
+
+        // 如果已经初始化过，直接返回
+        if (modal._dragInitialized) return;
+
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+
+        modalHeader.addEventListener('mousedown', (e) => {
+            // 如果点击的是按钮，不开始拖动
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
+            // 如果是最大化状态，不允许拖动
+            if (modal.classList.contains('maximized')) return;
+
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            // 获取当前位置（如果有 transform）
+            const style = window.getComputedStyle(modalContent);
+            const matrix = new DOMMatrixReadOnly(style.transform);
+            initialX = matrix.m41;
+            initialY = matrix.m42;
+
+            modalHeader.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            e.preventDefault();
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            modalContent.style.transform = `translate(${initialX + dx}px, ${initialY + dy}px)`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                modalHeader.style.cursor = 'move';
+            }
+        });
+
+        modal._dragInitialized = true;
+    }
+
+    resetModalPosition() {
+        const modalContent = document.querySelector('#sqlFixModal .modal-content');
+        modalContent.style.transform = '';
     }
 
     copyFixSql() {
@@ -1186,11 +1254,12 @@ class SQLQueryTool {
 
         const fixedDataDiv = document.getElementById('fixedData');
         if (fixedDataDiv) {
-            // 传递updatedFields信息
+            // 传入原始数据用于对比，以及updatedFields用于高亮SQL更新的字段
             fixedDataDiv.innerHTML = this.createDataTable(
                 this.currentViolationData.fixedRows,
-                false,
-                this.updatedFields
+                true,  // showChanges = true，显示修复前后的变化
+                this.updatedFields,
+                this.currentViolationData.rows  // 传入原始数据
             );
             fixedDataDiv.style.cssText = 'margin-bottom: 20px; padding: 12px; background-color: #dcfce7; border-radius: 6px;';
         }
@@ -1345,7 +1414,7 @@ class SQLQueryTool {
         };
     }
 
-    createDataTable(rows, showChanges = false, updatedFields = null) {
+    createDataTable(rows, showChanges = false, updatedFields = null, originalRowsInput = null) {
         if (!rows || rows.length === 0) return '<p>无数据</p>';
 
         const columns = ['ACCT_ITEM_TYPE_ID', 'ID', 'PROD_INST_ID', 'NAME', 'START_DATE', 'END_DATE', 'START_FLAG', 'LATEST_FLAG'];
@@ -1356,7 +1425,8 @@ class SQLQueryTool {
         });
         html += '</tr></thead><tbody>';
 
-        const originalRows = showChanges ? this.changeRecordData : [];
+        // 使用传入的原始数据，如果没有则使用 this.changeRecordData
+        const originalRows = showChanges ? (originalRowsInput || this.changeRecordData) : [];
 
         rows.forEach(row => {
             html += '<tr>';
@@ -1379,7 +1449,8 @@ class SQLQueryTool {
                     }
                 }
                 // Check if this value changed (for fixed data display)
-                else if (showChanges) {
+                // 注意：即使 updatedFields 存在，也要检查 showChanges
+                if (showChanges && !cellClass) {
                     const originalRow = originalRows.find(r => r.ID === row.ID);
                     if (originalRow && originalRow[col] !== value) {
                         cellClass = 'changed-cell';
@@ -1436,9 +1507,9 @@ class SQLQueryTool {
 
     filterChangeLog(filterValue) {
         // Re-display change-log with filter applied
-        const changeLogColumn = document.querySelector('[data-query="change-log"]');
-        const sqlContent = changeLogColumn.querySelector('.sql-content');
-        const sql = sqlContent.textContent;
+        const changeLogDrawer = document.getElementById('changeLogDrawer');
+        const sqlContent = changeLogDrawer.querySelector('.sql-content');
+        const sql = sqlContent ? sqlContent.textContent : '-- SQL query will appear here after execution';
 
         // Get filtered data
         let filteredData = this.changeLogData;
@@ -1450,14 +1521,14 @@ class SQLQueryTool {
         }
 
         // Update filter count display
-        const filterCountEl = document.getElementById('filterCount');
+        const filterCountEl = document.getElementById('filterCountDrawer');
         if (filterValue) {
             filterCountEl.textContent = `${filteredData.length} / ${this.changeLogData.length}`;
         } else {
             filterCountEl.textContent = '';
         }
 
-        // Re-display with filtered data (get the SQL from the element)
+        // Re-display with filtered data
         this.displayResults('change-log', filteredData, sql !== '-- SQL query will appear here after execution' ? sql : null);
     }
 
@@ -1474,6 +1545,60 @@ class SQLQueryTool {
 
     closeDrawer() {
         document.getElementById('instanceDrawer').classList.remove('open');
+    }
+
+    // 打开/关闭 Instance Info 抽屉（切换功能）
+    openInstanceDrawer() {
+        const drawer = document.getElementById('instanceDrawer');
+        const isOpen = drawer.classList.contains('open');
+
+        if (isOpen) {
+            // 如果已打开，则关闭
+            this.closeAllDrawers();
+        } else {
+            // 如果未打开，关闭其他抽屉并打开此抽屉
+            this.closeAllDrawers();
+            drawer.classList.add('open');
+            this.updateDrawerButtonStates('instance');
+        }
+    }
+
+    // 打开/关闭 Change Log 抽屉（切换功能）
+    openChangeLogDrawer() {
+        const drawer = document.getElementById('changeLogDrawer');
+        const isOpen = drawer.classList.contains('open');
+
+        if (isOpen) {
+            // 如果已打开，则关闭
+            this.closeAllDrawers();
+        } else {
+            // 如果未打开，关闭其他抽屉并打开此抽屉
+            this.closeAllDrawers();
+            drawer.classList.add('open');
+            this.updateDrawerButtonStates('changelog');
+        }
+    }
+
+    // 关闭所有抽屉
+    closeAllDrawers() {
+        document.getElementById('instanceDrawer').classList.remove('open');
+        document.getElementById('changeLogDrawer').classList.remove('open');
+        this.updateDrawerButtonStates(null);
+    }
+
+    // 更新抽屉按钮的突出显示状态
+    updateDrawerButtonStates(activeDrawer) {
+        const instanceBtn = document.getElementById('instanceDrawerToggle');
+        const changelogBtn = document.getElementById('changeLogDrawerToggle');
+
+        instanceBtn.classList.remove('active');
+        changelogBtn.classList.remove('active');
+
+        if (activeDrawer === 'instance') {
+            instanceBtn.classList.add('active');
+        } else if (activeDrawer === 'changelog') {
+            changelogBtn.classList.add('active');
+        }
     }
 
     displayInstanceInfo(data, sql = null) {
@@ -1498,43 +1623,118 @@ class SQLQueryTool {
         if (!data || data.length === 0) {
             emptyState.style.display = 'flex';
             table.style.display = 'none';
-            return;
+        } else {
+            emptyState.style.display = 'none';
+            table.style.display = 'table';
+
+            // Get column names from first row
+            const columns = Object.keys(data[0]);
+
+            // Create header row
+            const headerRow = document.createElement('tr');
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            // Create data rows
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                columns.forEach(col => {
+                    const td = document.createElement('td');
+                    let value = row[col];
+
+                    // Format datetime columns
+                    if (value !== null && value !== undefined && isDateColumn(col)) {
+                        value = formatDateTime(value);
+                    }
+
+                    const displayValue = value !== null && value !== undefined ? String(value) : '';
+                    td.textContent = displayValue;
+                    td.title = displayValue;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
         }
 
-        emptyState.style.display = 'none';
-        table.style.display = 'table';
+        // 只有在抽屉未打开时才自动打开（避免数据更新时触发切换）
+        if (!drawer.classList.contains('open')) {
+            this.openInstanceDrawer();
+        } else {
+            // 如果抽屉已打开，只更新按钮状态
+            this.updateDrawerButtonStates('instance');
+        }
+    }
 
-        // Get column names from first row
-        const columns = Object.keys(data[0]);
+    displayChangeLogInDrawer(data, sql = null) {
+        const drawer = document.getElementById('changeLogDrawer');
+        const table = drawer.querySelector('.result-table');
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        const emptyState = drawer.querySelector('.empty-state');
+        const sqlContent = drawer.querySelector('.sql-content');
 
-        // Create header row
-        const headerRow = document.createElement('tr');
-        columns.forEach(col => {
-            const th = document.createElement('th');
-            th.textContent = col;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
+        // Clear existing data
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
 
-        // Create data rows
-        data.forEach(row => {
-            const tr = document.createElement('tr');
+        // Display SQL with actual parameter value
+        if (sql) {
+            const prodInstId = this.getProdInstId();
+            const formattedSql = sql.replace(/%s/g, `'${prodInstId}'`);
+            sqlContent.textContent = formattedSql;
+        }
+
+        if (!data || data.length === 0) {
+            emptyState.style.display = 'flex';
+            table.style.display = 'none';
+        } else {
+            emptyState.style.display = 'none';
+            table.style.display = 'table';
+
+            // Get column names from first row
+            const columns = Object.keys(data[0]);
+
+            // Create header row
+            const headerRow = document.createElement('tr');
             columns.forEach(col => {
-                const td = document.createElement('td');
-                let value = row[col];
-
-                // Format datetime columns
-                if (value !== null && value !== undefined && isDateColumn(col)) {
-                    value = formatDateTime(value);
-                }
-
-                const displayValue = value !== null && value !== undefined ? String(value) : '';
-                td.textContent = displayValue;
-                td.title = displayValue;
-                tr.appendChild(td);
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
             });
-            tbody.appendChild(tr);
-        });
+            thead.appendChild(headerRow);
+
+            // Create data rows
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                columns.forEach(col => {
+                    const td = document.createElement('td');
+                    let value = row[col];
+
+                    // Format datetime columns
+                    if (value !== null && value !== undefined && isDateColumn(col)) {
+                        value = formatDateTime(value);
+                    }
+
+                    const displayValue = value !== null && value !== undefined ? String(value) : '';
+                    td.textContent = displayValue;
+                    td.title = displayValue;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 只有在抽屉未打开时才自动打开（避免过滤时触发切换）
+        if (!drawer.classList.contains('open')) {
+            this.openChangeLogDrawer();
+        } else {
+            // 如果抽屉已打开，只更新按钮状态
+            this.updateDrawerButtonStates('changelog');
+        }
     }
 
     // ==================== Tab 管理 ====================

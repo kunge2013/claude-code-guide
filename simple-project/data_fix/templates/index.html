@@ -52,7 +52,7 @@
 
             <!-- Three Column Results -->
             <section class="results-section">
-                <!-- Column 1: Change Record (wide) -->
+                <!-- Change Record (full width) -->
                 <div class="result-column change-record-wide" data-query="change-record">
                     <div class="column-header">
                         <h2>Change Record</h2>
@@ -73,44 +73,23 @@
                         <pre class="sql-content">-- SQL query will appear here after execution</pre>
                     </div>
                 </div>
-
-                <!-- Column 2: Change Log -->
-                <div class="result-column" data-query="change-log">
-                    <div class="column-header">
-                        <h2>Change Log</h2>
-                        <span class="result-count">0 rows</span>
-                    </div>
-                    <div class="filter-bar">
-                        <input type="text" id="attrNameFilter" placeholder="输入 ATTR_NAME 过滤..." class="filter-input">
-                        <span class="filter-count" id="filterCount"></span>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="result-table">
-                            <thead></thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="empty-state">No data</div>
-                    </div>
-                    <div class="sql-display">
-                        <div class="sql-header">
-                            <strong>SQL Query:</strong>
-                            <button class="copy-sql-btn" data-type="change-log">Copy</button>
-                        </div>
-                        <pre class="sql-content">-- SQL query will appear here after execution</pre>
-                    </div>
-                </div>
             </section>
 
-            <!-- Instance Info Drawer Button -->
-            <button id="drawerToggle" class="drawer-toggle" title="Instance Info">
-                <span class="icon">📋</span>
-            </button>
+            <!-- Drawer Toggle Buttons -->
+            <div class="drawer-toggles">
+                <button id="instanceDrawerToggle" class="drawer-toggle instance-toggle" title="Instance Info">
+                    <span class="icon">📋</span>
+                </button>
+                <button id="changeLogDrawerToggle" class="drawer-toggle changelog-toggle" title="Change Log">
+                    <span class="icon">📝</span>
+                </button>
+            </div>
 
             <!-- Instance Info Drawer -->
-            <div id="instanceDrawer" class="drawer">
+            <div id="instanceDrawer" class="drawer instance-drawer">
                 <div class="drawer-header">
-                    <h2>Instance Info</h2>
-                    <button class="close-drawer" id="closeDrawer">&times;</button>
+                    <h2>📋 Instance Info</h2>
+                    <button class="close-drawer" id="closeInstanceDrawer">&times;</button>
                 </div>
                 <div class="drawer-content">
                     <div class="table-wrapper">
@@ -124,6 +103,34 @@
                         <div class="sql-header">
                             <strong>SQL Query:</strong>
                             <button class="copy-sql-btn" data-type="instance-info">Copy</button>
+                        </div>
+                        <pre class="sql-content">-- SQL query will appear here after execution</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Log Drawer -->
+            <div id="changeLogDrawer" class="drawer changelog-drawer">
+                <div class="drawer-header">
+                    <h2>📝 Change Log</h2>
+                    <button class="close-drawer" id="closeChangeLogDrawer">&times;</button>
+                </div>
+                <div class="drawer-content">
+                    <div class="filter-bar">
+                        <input type="text" id="attrNameFilterDrawer" placeholder="输入 ATTR_NAME 过滤..." class="filter-input">
+                        <span class="filter-count" id="filterCountDrawer"></span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="result-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state">No data</div>
+                    </div>
+                    <div class="sql-display">
+                        <div class="sql-header">
+                            <strong>SQL Query:</strong>
+                            <button class="copy-sql-btn" data-type="change-log">Copy</button>
                         </div>
                         <pre class="sql-content">-- SQL query will appear here after execution</pre>
                     </div>
