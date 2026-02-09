@@ -218,6 +218,10 @@ class SQLQueryTool {
         document.getElementById('generateLlmSqlBtn').addEventListener('click', () => this.generateLlmSql());
         document.getElementById('copyLlmSqlBtn').addEventListener('click', () => this.copyLlmSql());
 
+        // Debug LLM with custom prompt
+        document.getElementById('debugLlmBtn').addEventListener('click', () => this.debugLlmWithPrompt());
+        document.getElementById('copyDebugSqlBtn').addEventListener('click', () => this.copyDebugSql());
+
         // Close SQL modal on outside click
         document.getElementById('sqlFixModal').addEventListener('click', (e) => {
             if (e.target.id === 'sqlFixModal') {
@@ -973,6 +977,91 @@ class SQLQueryTool {
         });
     }
 
+    // Debug: 直接用自定义 prompt 调用 LLM
+    async debugLlmWithPrompt() {
+        const promptTextarea = document.getElementById('debugPromptTextarea');
+        if (!promptTextarea) {
+            alert('请先生成大模型 SQL 以获取 prompt 模板');
+            return;
+        }
+
+        const customPrompt = promptTextarea.value.trim();
+        if (!customPrompt) {
+            alert('Prompt 不能为空');
+            return;
+        }
+
+        const btn = document.getElementById('debugLlmBtn');
+        const resultDiv = document.getElementById('debugResult');
+        const sqlPre = document.getElementById('debugSqlOutput');
+
+        // 显示加载状态
+        btn.disabled = true;
+        btn.innerHTML = '<span class="icon">⏳</span> 调用模型中...';
+        resultDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/debug-llm-prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: customPrompt })
+            });
+
+            if (!response.ok) {
+                throw new Error('API 请求失败');
+            }
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // 显示结果
+            sqlPre.innerHTML = data.sql ? highlightSQL(data.sql) : '无返回结果';
+            resultDiv.style.display = 'block';
+
+            // 自动解析并更新表格
+            if (data.sql) {
+                this.parseAndUpdateFixedRows(data.sql);
+                this.updateFixedDataTable();
+            }
+
+            this.setStatus('Debug 调用成功', 'success');
+        } catch (error) {
+            console.error('Debug LLM error:', error);
+            this.setStatus('Debug 调用失败: ' + error.message, 'error');
+            sqlPre.textContent = '错误: ' + error.message;
+            resultDiv.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="icon">🐛</span> Debug: 直接用 Prompt 调用模型';
+        }
+    }
+
+    // 复制 Debug SQL
+    copyDebugSql() {
+        const sqlElement = document.getElementById('debugSqlOutput');
+        const sqlText = sqlElement.textContent || sqlElement.innerText;
+
+        if (!sqlText || sqlText.trim() === '' || sqlText.startsWith('错误:')) {
+            alert('没有可复制的 SQL');
+            return;
+        }
+
+        navigator.clipboard.writeText(sqlText).then(() => {
+            const btn = document.getElementById('copyDebugSqlBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '已复制!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+            this.setStatus('Debug SQL 已复制到剪贴板', 'success');
+        }).catch(err => {
+            this.setStatus('复制失败', 'error');
+        });
+    }
+
     // 解析UPDATE语句并更新fixedRows
     parseAndUpdateFixedRows(sql) {
         if (!this.currentViolationData || !sql) return;
@@ -1609,19 +1698,18 @@ class SQLQueryTool {
             `;
         }
 
-        // Prompt 展示
+        // Prompt 展示 - 可编辑的富文本框
         if (data.debug?.prompt) {
             const container = document.getElementById('promptContainer');
             if (container) {
-                const promptPreview = data.debug.prompt.substring(0, 500) + (data.debug.prompt.length > 500 ? '...' : '');
                 container.innerHTML = `
                     <div class="prompt-section">
-                        <div class="section-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
-                            <strong>完整 Prompt</strong>
-                            <button class="toggle-btn">▼</button>
+                        <div class="section-header">
+                            <strong>完整 Prompt (可编辑)</strong>
+                            <button class="toggle-btn" onclick="this.closest('.prompt-section').querySelector('.prompt-textarea').select()">全选</button>
                         </div>
-                        <div class="section-content collapsed">
-                            <pre class="sql-content">${this.escapeHtml(data.debug.prompt)}</pre>
+                        <div class="section-content">
+                            <textarea id="debugPromptTextarea" class="prompt-textarea" rows="20" style="width: 100%; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; resize: vertical;">${this.escapeHtml(data.debug.prompt)}</textarea>
                         </div>
                     </div>
                 `;

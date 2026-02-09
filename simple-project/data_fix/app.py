@@ -254,5 +254,51 @@ def generate_llm_sql():
         })
 
 
+@app.route('/api/debug-llm-prompt', methods=['POST'])
+def debug_llm_prompt():
+    """Debug endpoint: Call LLM directly with custom prompt."""
+    try:
+        data = request.json
+        custom_prompt = data.get('prompt', '')
+        model = data.get('model', os.getenv('LLM_MODEL', 'glm-4-flash'))
+        provider = data.get('provider', os.getenv('LLM_PROVIDER', 'auto'))
+
+        if not custom_prompt:
+            return jsonify({'success': False, 'message': 'Prompt is required'})
+
+        # Import LLM module
+        try:
+            from src.llm.sql_generator import SQLGeneratorAgent
+        except ImportError:
+            return jsonify({
+                'success': False,
+                'message': 'LLM module not available. Please install dependencies.'
+            })
+
+        # Create LLM agent (no debug mode needed for API call)
+        llm_agent = SQLGeneratorAgent(model=model, debug=False, provider=provider)
+        result = llm_agent.call_with_custom_prompt(custom_prompt)
+
+        return jsonify({
+            'success': True,
+            'sql': result['sql'],
+            'explanation': result.get('explanation', ''),
+            'model': model,
+            'provider': llm_agent.provider
+        })
+
+    except ValueError as e:
+        # Handle missing API key
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Debug call failed: {str(e)}'
+        })
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

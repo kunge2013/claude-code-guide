@@ -653,6 +653,42 @@ UPDATE cal_acct_record SET ...
             "explanation": explanation if explanation else "SQL修复语句"
         }
 
+    def call_with_custom_prompt(self, custom_prompt: str) -> Dict[str, str]:
+        """
+        使用自定义 prompt 直接调用 LLM。
+
+        Args:
+            custom_prompt: 自定义的提示词
+
+        Returns:
+            包含 'sql' 和 'explanation' 键的字典
+        """
+        try:
+            if self.debug:
+                print("=" * 80)
+                print("使用自定义 Prompt 调用 LLM:")
+                print("=" * 80)
+                print(custom_prompt[:500] + "..." if len(custom_prompt) > 500 else custom_prompt)
+                print("=" * 80)
+
+            # 直接使用自定义 prompt 调用 LLM
+            result = self.llm.invoke(custom_prompt)
+
+            # 获取响应内容
+            if hasattr(result, 'content'):
+                content = result.content
+            else:
+                content = str(result)
+
+            # 解析响应
+            return self._parse_response(content)
+
+        except Exception as e:
+            return {
+                "sql": f"-- 调用失败: {str(e)}",
+                "explanation": f"错误: {str(e)}"
+            }
+
     def _format_data_for_prompt(self, data: List[Dict[str, Any]]) -> str:
         """格式化记录数据以便包含在提示词中"""
         if not data:

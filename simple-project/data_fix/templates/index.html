@@ -289,6 +289,19 @@
                     <div class="prompt-container" id="promptContainer">
                         <!-- Prompt 内容动态填充 -->
                     </div>
+                    <!-- Debug 按钮 -->
+                    <div style="padding: 0 24px 16px 24px;">
+                        <button id="debugLlmBtn" class="btn btn-primary" style="width: 100%;">
+                            <span class="icon">🐛</span> Debug: 直接用 Prompt 调用模型
+                        </button>
+                    </div>
+                    <!-- Debug 结果 -->
+                    <div id="debugResult" style="display: none; padding: 0 24px 24px 24px;">
+                        <div class="sql-code-block">
+                            <button id="copyDebugSqlBtn" class="btn btn-primary sql-copy-btn">复制 SQL</button>
+                            <pre id="debugSqlOutput"></pre>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tab 4: 修复可视化 -->
