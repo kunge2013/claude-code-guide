@@ -916,6 +916,9 @@ class SQLQueryTool {
             const data = await response.json();
 
             if (data.success) {
+                // 保存 LLM 返回的数据，用于标签切换时重新渲染
+                this.lastLlmData = data;
+
                 sqlPre.innerHTML = highlightSQL(data.sql);
                 resultDiv.style.display = 'block';
                 this.setStatus('大模型 SQL 生成成功', 'success');
@@ -1562,6 +1565,11 @@ class SQLQueryTool {
                 // Render timeline when switching to timeline tab
                 if (tabName === 'timeline' && this.currentViolationData) {
                     this.renderTimeline(this.currentViolationData.rows);
+                }
+
+                // Render LLM reasoning when switching to llm tab
+                if (tabName === 'llm' && this.lastLlmData) {
+                    this.renderLlmReasoning(this.lastLlmData);
                 }
             });
         });
